@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { styled } from '@mui/material/styles';
 import { 
@@ -34,6 +34,9 @@ import CustomerDetails from '../pages/CustomerDetails';
 import Sales from '../pages/Sales';
 import NewSale from '../pages/NewSale';
 import Settings from '../pages/Settings';
+
+// Импорт контекста
+import { ThemeContext } from '../index';
 
 // Константы
 const drawerWidth = 240;
@@ -88,6 +91,9 @@ function App() {
   const [open, setOpen] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Получаем язык из контекста
+  const { language } = useContext(ThemeContext);
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -108,7 +114,7 @@ function App() {
     if (path === '/sales/new') return 'Новая продажа';
     if (path === '/settings') return 'Настройки';
     
-    return 'Mobile CRM';
+    return 'T2 Mobile';
   };
 
   // Элементы меню
@@ -171,10 +177,10 @@ function App() {
                 mr: 1
               }}
             >
-              MC
+              T2
             </Avatar>
             <Typography variant="h6" noWrap>
-              Mobile CRM
+              T2 Mobile
             </Typography>
           </Box>
           <IconButton onClick={handleDrawerClose}>

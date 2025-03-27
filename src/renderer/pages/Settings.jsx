@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   Box,
   Paper,
@@ -41,6 +41,7 @@ import {
   DataSaverOff as DataIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import { ThemeContext } from '../index';
 
 // Стилизованный компонент для секций настроек
 const SettingsSection = styled(Paper)(({ theme }) => ({
@@ -49,10 +50,11 @@ const SettingsSection = styled(Paper)(({ theme }) => ({
 }));
 
 const Settings = () => {
+  // Получаем значения из контекста
+  const { darkMode, setDarkMode, language, setLanguage } = useContext(ThemeContext);
+  
   // Состояния настроек приложения
-  const [darkMode, setDarkMode] = useState(false);
-  const [language, setLanguage] = useState('ru');
-  const [companyName, setCompanyName] = useState('Mobile CRM');
+  const [companyName, setCompanyName] = useState('T2 Mobile');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
@@ -223,34 +225,12 @@ const Settings = () => {
         <Divider sx={{ mb: 2 }} />
         
         <Grid container spacing={2} sx={{ p: 2 }}>
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12}>
             <Card variant="outlined">
-              <CardHeader title="Mobile CRM" subheader="Версия 1.0.0" />
+              <CardHeader title="T2 Mobile" subheader="Версия 1.0.0" />
               <CardContent>
                 <Typography variant="body2" color="text.secondary">
-                  Система учета клиентов и мониторинга продаж пакетов мобильной связи. 
-                  Разработано с использованием Electron и React.
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <Card variant="outlined">
-              <CardHeader 
-                title="Поддержка" 
-                subheader="Контактная информация"
-                action={
-                  <IconButton aria-label="help">
-                    <HelpIcon />
-                  </IconButton>
-                }
-              />
-              <CardContent>
-                <Typography variant="body2" color="text.secondary">
-                  Email: support@mobilecrm.com<br />
-                  Телефон: +7 (XXX) XXX-XX-XX<br />
-                  Сайт: www.mobilecrm.com
+                  Информационная система мониторинга продаж телекоммуникационных услуг.
                 </Typography>
               </CardContent>
             </Card>
