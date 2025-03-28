@@ -1,4 +1,4 @@
-import React, { createContext, useState, useMemo, Suspense } from 'react';
+import React, { createContext, useState, useMemo, Suspense, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -6,6 +6,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { Box, CircularProgress, Alert, Button, Typography } from '@mui/material';
 import App from './components/App';
 import './styles/index.css';
+import './styles/global.css';
 import AuthProvider from './context/AuthContext';
 
 // Класс обработки ошибок для отлова ошибок React
@@ -89,26 +90,77 @@ export const ThemeContext = createContext();
 
 // Создаем и экспортируем провайдер контекста
 export const ThemeContextProvider = ({ children }) => {
-  const [darkMode, setDarkMode] = useState(false);
-  const [language, setLanguage] = useState('ru');
+  const [darkMode, setDarkMode] = useState(
+    localStorage.getItem('darkMode') === 'true' || true // По умолчанию включена темная тема
+  );
+  const [language, setLanguage] = useState(localStorage.getItem('language') || 'ru');
 
-  // Создаем тему в зависимости от режима
+  useEffect(() => {
+    localStorage.setItem('darkMode', darkMode);
+  }, [darkMode]);
+
+  useEffect(() => {
+    localStorage.setItem('language', language);
+  }, [language]);
+
+  // Создаем тему на основе выбранного режима и фиолетово-неоновой цветовой схемы
   const theme = useMemo(() => createTheme({
     palette: {
       mode: darkMode ? 'dark' : 'light',
       primary: {
-        main: '#3f51b5',
+        main: '#9d4edd',
+        light: '#c77dff',
+        dark: '#7b2cbf',
+        contrastText: '#ffffff',
       },
       secondary: {
-        main: '#f50057',
+        main: '#e0aaff',
+        light: '#f3d5ff',
+        dark: '#b388eb',
+        contrastText: '#1a1a2e',
       },
-      background: {
-        default: darkMode ? '#303030' : '#f5f5f5',
-        paper: darkMode ? '#424242' : '#fff',
+      background: darkMode ? {
+        default: '#1a1a2e',
+        paper: '#22223b',
+      } : {
+        default: '#f5f5f7',
+        paper: '#ffffff',
       },
+      text: darkMode ? {
+        primary: '#e2e2e2',
+        secondary: '#b8b8b8',
+      } : {
+        primary: '#333333',
+        secondary: '#666666',
+      },
+      error: {
+        main: '#ff5555',
+      },
+      warning: {
+        main: '#fca311',
+      },
+      info: {
+        main: '#3a86ff',
+      },
+      success: {
+        main: '#2ec4b6',
+      },
+      divider: darkMode ? 'rgba(157, 78, 221, 0.2)' : 'rgba(157, 78, 221, 0.1)',
     },
     typography: {
-      fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+      fontFamily: '"Roboto", "Arial", sans-serif',
+      h1: {
+        fontWeight: 700,
+      },
+      h2: {
+        fontWeight: 600,
+      },
+      h3: {
+        fontWeight: 600,
+      },
+      h4: {
+        fontWeight: 600,
+      },
       h5: {
         fontWeight: 500,
       },
@@ -121,6 +173,16 @@ export const ThemeContextProvider = ({ children }) => {
         styleOverrides: {
           root: {
             borderRadius: 8,
+            textTransform: 'none',
+            fontWeight: 500,
+          },
+          containedPrimary: {
+            background: 'linear-gradient(45deg, #7b2cbf 30%, #9d4edd 90%)',
+            boxShadow: '0 3px 8px rgba(123, 44, 191, 0.3)',
+            '&:hover': {
+              background: 'linear-gradient(45deg, #9d4edd 30%, #c77dff 90%)',
+              boxShadow: '0 4px 10px rgba(157, 78, 221, 0.4)',
+            },
           },
         },
       },
@@ -128,22 +190,58 @@ export const ThemeContextProvider = ({ children }) => {
         styleOverrides: {
           root: {
             borderRadius: 12,
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)',
+          },
+        },
+      },
+      MuiAppBar: {
+        styleOverrides: {
+          root: {
+            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.2)',
+          },
+        },
+      },
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            '&:hover': {
+              backgroundColor: 'rgba(157, 78, 221, 0.1)',
+            },
+          },
+        },
+      },
+      MuiSwitch: {
+        styleOverrides: {
+          switchBase: {
+            '&.Mui-checked': {
+              color: '#9d4edd',
+              '& + .MuiSwitch-track': {
+                backgroundColor: '#7b2cbf',
+                opacity: 0.5,
+              },
+            },
+          },
+          track: {
+            backgroundColor: '#555',
+            opacity: 0.3,
+          },
+          thumb: {
+            boxShadow: '0 2px 4px 0 rgba(0, 0, 0, 0.2)',
           },
         },
       },
     },
   }), [darkMode]);
 
-  const contextValue = {
+  const themeValue = {
     darkMode,
     setDarkMode,
     language,
-    setLanguage,
+    setLanguage
   };
 
   return (
-    <ThemeContext.Provider value={contextValue}>
+    <ThemeContext.Provider value={themeValue}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
         {children}

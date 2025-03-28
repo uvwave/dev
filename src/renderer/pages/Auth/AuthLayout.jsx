@@ -3,6 +3,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { Box, Container, Paper, Alert, CircularProgress } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { AuthContext } from '../../context/AuthContext';
+import TitleBar from '../../components/TitleBar';
 
 // Стилизованный фон для страниц авторизации
 const AuthBackground = styled(Box)(({ theme }) => ({
@@ -10,10 +11,14 @@ const AuthBackground = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: theme.palette.mode === 'dark' 
-    ? 'linear-gradient(45deg, #303030 30%, #424242 90%)' 
-    : 'linear-gradient(45deg, #f5f5f5 30%, #e0e0e0 90%)',
+  background: 'linear-gradient(135deg, #1a1a2e 0%, #22223b 100%)',
   padding: theme.spacing(2),
+}));
+
+// Компактный контейнер для формы
+const AuthContainer = styled(Container)(({ theme }) => ({
+  maxWidth: '400px',
+  padding: 0,
 }));
 
 const AuthLayout = () => {
@@ -25,7 +30,7 @@ const AuthLayout = () => {
     console.log('AuthLayout: отображение загрузки...');
     return (
       <AuthBackground>
-        <CircularProgress />
+        <CircularProgress sx={{ color: '#9d4edd' }} />
       </AuthBackground>
     );
   }
@@ -40,9 +45,10 @@ const AuthLayout = () => {
   // Отображаем страницы входа/регистрации
   return (
     <AuthBackground>
-      <Container maxWidth="lg">
+      <AuthContainer maxWidth={false}>
+        <TitleBar />
         <Outlet />
-      </Container>
+      </AuthContainer>
     </AuthBackground>
   );
 };

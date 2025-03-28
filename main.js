@@ -25,22 +25,27 @@ if (!store.has('sales')) {
 let mainWindow;
 
 function createWindow() {
-  // Создаем окно браузера
+  // Создаем окно браузера с отключенным системным заголовком
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    frame: false, // Отключаем стандартный фрейм окна
+    titleBarStyle: 'hidden', // Скрываем стандартный заголовок
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
-    }
+    },
+    backgroundColor: '#1a1a2e', // Тёмный фон для предотвращения белых вспышек при загрузке
   });
 
   // Загружаем index.html
   mainWindow.loadFile(path.join(__dirname, 'build', 'index.html'));
   
   // Открываем инструменты разработчика в режиме разработки
-  mainWindow.webContents.openDevTools();
+  if (process.env.NODE_ENV === 'development') {
+    mainWindow.webContents.openDevTools();
+  }
 
   // Убираем меню по умолчанию
   mainWindow.setMenuBarVisibility(false);
@@ -50,6 +55,35 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+// IPC обработчики для управления окном
+ipcMain.handle('window-minimize', () => {
+  if (mainWindow) mainWindow.minimize();
+  return true;
+});
+
+ipcMain.handle('window-maximize', () => {
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+      return false;
+    } else {
+      mainWindow.maximize();
+      return true;
+    }
+  }
+  return false;
+});
+
+ipcMain.handle('window-close', () => {
+  if (mainWindow) mainWindow.close();
+  return true;
+});
+
+ipcMain.handle('is-window-maximized', () => {
+  if (mainWindow) return mainWindow.isMaximized();
+  return false;
+});
 
 // Создаем окно, когда приложение готово
 app.whenReady().then(() => {

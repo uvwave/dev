@@ -1,22 +1,32 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Экспортируем функции API, доступные из renderer процесса
+// Предоставление API из main процесса в renderer процесс через контекстный мост
 contextBridge.exposeInMainWorld('api', {
-  // Функции для работы с клиентами
+  // Клиенты
   customers: {
     getAll: () => ipcRenderer.invoke('get-customers'),
     add: (customer) => ipcRenderer.invoke('add-customer', customer),
     update: (customer) => ipcRenderer.invoke('update-customer', customer),
     delete: (id) => ipcRenderer.invoke('delete-customer', id)
   },
-  // Функции для работы с пакетами услуг
+  
+  // Пакеты услуг
   packages: {
     getAll: () => ipcRenderer.invoke('get-packages')
   },
-  // Функции для работы с продажами
+  
+  // Продажи
   sales: {
-    getAll: () => ipcRenderer.invoke('get-sales'),
     add: (sale) => ipcRenderer.invoke('add-sale', sale),
+    getAll: () => ipcRenderer.invoke('get-sales'),
     getStats: () => ipcRenderer.invoke('get-sales-stats')
+  },
+  
+  // Управление окном
+  window: {
+    minimize: () => ipcRenderer.invoke('window-minimize'),
+    maximize: () => ipcRenderer.invoke('window-maximize'),
+    close: () => ipcRenderer.invoke('window-close'),
+    isMaximized: () => ipcRenderer.invoke('is-window-maximized')
   }
 }); 

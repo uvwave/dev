@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect, Suspense } from 'react';
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { styled } from '@mui/material/styles';
+import { styled, useMediaQuery } from '@mui/material';
 import { 
   Box, 
   CssBaseline, 
@@ -21,7 +21,8 @@ import {
   MenuItem,
   CircularProgress,
   Alert,
-  Button
+  Button,
+  Fab
 } from '@mui/material';
 
 // Иконки
@@ -32,6 +33,7 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import AddIcon from '@mui/icons-material/Add';
 
 // Страницы
 import Dashboard from '../pages/Dashboard';
@@ -53,53 +55,127 @@ import { AuthContext } from '../context/AuthContext';
 
 // Компоненты
 import ProtectedRoute from './ProtectedRoute';
+import TitleBar from './TitleBar';
+import CustomAppBar from './CustomAppBar';
+import MenuItems from './MenuItems';
 
 // Константы
 const drawerWidth = 240;
+const TITLE_BAR_HEIGHT = 38; // Высота кастомного тайтл бара
 
 // Стилизованные компоненты
-const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })(
+const Main = styled(Box, { shouldForwardProp: (prop) => prop !== 'open' })(
   ({ theme, open }) => ({
     flexGrow: 1,
     padding: theme.spacing(3),
+    marginLeft: 0,
     transition: theme.transitions.create('margin', {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
     }),
-    marginLeft: `-${drawerWidth}px`,
     ...(open && {
+      marginLeft: `${drawerWidth}px`,
       transition: theme.transitions.create('margin', {
         easing: theme.transitions.easing.easeOut,
         duration: theme.transitions.duration.enteringScreen,
       }),
-      marginLeft: 0,
     }),
+    marginTop: `calc(64px + ${TITLE_BAR_HEIGHT}px)`,
+    backgroundColor: theme.palette.background.default,
+    minHeight: `calc(100vh - 64px - ${TITLE_BAR_HEIGHT}px)`,
+    width: `calc(100% - ${open ? drawerWidth : 0}px)`,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    overflow: 'auto',
+    overflowX: 'hidden',
+    zIndex: 1,
   }),
 );
 
-const AppBarStyled = styled(AppBar, { shouldForwardProp: (prop) => prop !== 'open' })(
-  ({ theme, open }) => ({
-    transition: theme.transitions.create(['margin', 'width'], {
-      easing: theme.transitions.easing.sharp,
-      duration: theme.transitions.duration.leavingScreen,
-    }),
-    ...(open && {
-      width: `calc(100% - ${drawerWidth}px)`,
-      marginLeft: `${drawerWidth}px`,
-      transition: theme.transitions.create(['margin', 'width'], {
-        easing: theme.transitions.easing.easeOut,
-        duration: theme.transitions.duration.enteringScreen,
-      }),
-    }),
-  }),
-);
+const ContentContainer = styled(Box)(({ theme }) => ({
+  position: 'relative',
+  height: '100%',
+  padding: theme.spacing(2),
+  backgroundColor: theme.palette.background.default,
+  borderRadius: theme.spacing(1),
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+  width: '100%',
+  overflow: 'auto',
+  overflowX: 'hidden', // Предотвращаем горизонтальную прокрутку
+  maxWidth: '100%',
+  '& button, & a, & input, & select': {
+    zIndex: 2, // Все интерактивные элементы имеют более высокий z-index
+    position: 'relative',
+  }
+}));
 
 const DrawerHeader = styled('div')(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   padding: theme.spacing(0, 1),
   ...theme.mixins.toolbar,
-  justifyContent: 'space-between',
+  justifyContent: 'flex-end',
+  height: `calc(${theme.mixins.toolbar.minHeight}px + ${TITLE_BAR_HEIGHT}px)`,
+}));
+
+const AppBarStyled = styled(CustomAppBar, {
+  shouldForwardProp: (prop) => prop !== 'open',
+})(({ theme, open }) => ({
+  transition: theme.transitions.create(['margin', 'width'], {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.leavingScreen,
+  }),
+  ...(open && {
+    width: `calc(100% - ${drawerWidth}px)`,
+    marginLeft: `${drawerWidth}px`,
+    transition: theme.transitions.create(['margin', 'width'], {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+  }),
+  marginTop: `${TITLE_BAR_HEIGHT}px`,
+}));
+
+const DrawerStyled = styled(Drawer)(({ theme }) => ({
+  width: drawerWidth,
+  flexShrink: 0,
+  position: 'relative',
+  zIndex: theme.zIndex.drawer - 1, // Боковая панель имеет меньший z-index, чтобы не перекрывать контент
+  '& .MuiDrawer-paper': {
+    width: drawerWidth,
+    boxSizing: 'border-box',
+    backgroundColor: '#1a1a2e',
+    color: '#e2e2e2',
+    borderRight: '1px solid #9d4edd33',
+    marginTop: TITLE_BAR_HEIGHT,
+    height: `calc(100% - ${TITLE_BAR_HEIGHT}px)`,
+    overflow: 'auto',
+    position: 'fixed',
+  },
+  '& .MuiListItemIcon-root': {
+    color: '#9d4edd',
+  },
+  '& .MuiListItemButton-root:hover': {
+    backgroundColor: '#9d4edd33',
+  },
+  '& .MuiListItemButton-root.Mui-selected': {
+    backgroundColor: '#9d4edd22',
+    borderLeft: '3px solid #9d4edd',
+  },
+}));
+
+// Находим компонент, который определяет плавающую кнопку с плюсом
+const FloatingActionButtonStyled = styled(Fab)(({ theme, open }) => ({
+  position: 'fixed',
+  bottom: theme.spacing(2),
+  right: theme.spacing(2), // Меняем позицию с left на right
+  zIndex: 999,
+  backgroundColor: '#9d4edd',
+  '&:hover': {
+    backgroundColor: '#7b2cbf',
+  },
 }));
 
 // Компонент загрузки
@@ -117,6 +193,7 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const [error, setError] = useState(null);
+  const isMobile = useMediaQuery((theme) => theme.breakpoints.down('md'));
   
   // Получаем данные из контекстов
   const { language } = useContext(ThemeContext);
@@ -133,6 +210,11 @@ function App() {
       loading: true 
     };
 
+  // Функция для перехода на страницу создания новой продажи
+  const handleNewSaleClick = () => {
+    navigate('/sales/new');
+  };
+
   // Отладка
   useEffect(() => {
     try {
@@ -146,12 +228,15 @@ function App() {
     }
   }, [currentUser, isAuthenticated, isAdmin, isClient]);
 
-  const handleDrawerOpen = () => {
-    setOpen(true);
-  };
+  // Если это мобильное устройство, закрыть панель по умолчанию
+  useEffect(() => {
+    if (isMobile) {
+      setOpen(false);
+    }
+  }, [isMobile]);
 
-  const handleDrawerClose = () => {
-    setOpen(false);
+  const handleDrawerToggle = () => {
+    setOpen(!open);
   };
 
   // Обработка меню профиля
@@ -288,177 +373,102 @@ function App() {
 
   // Основной макет для авторизованных пользователей
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column',
+      height: '100vh', 
+      overflow: 'hidden',
+      position: 'relative'
+    }}>
       <CssBaseline />
       
-      {/* Верхняя панель */}
-      <AppBarStyled position="fixed" open={open}>
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            onClick={handleDrawerOpen}
-            edge="start"
-            sx={{ mr: 2, ...(open && { display: 'none' }) }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {getPageTitle()}
-          </Typography>
-          
-          {isAuthenticated && (
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Tooltip title="Профиль">
-                <IconButton 
-                  color="inherit" 
-                  onClick={handleProfileMenuOpen}
-                  size="large"
-                  edge="end"
-                  aria-haspopup="true"
-                >
-                  <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
-                    {currentUser?.name?.charAt(0) || 'U'}
-                  </Avatar>
-                </IconButton>
-              </Tooltip>
-              
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleProfileMenuClose}
-                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-              >
-                <MenuItem onClick={() => {
-                  handleProfileMenuClose();
-                  navigate(isClient && isClient() ? '/profile' : '/settings');
-                }}>
-                  <ListItemIcon>
-                    <AccountCircleIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText>Профиль</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={handleLogout}>
-                  <ListItemIcon>
-                    <LogoutIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText>Выйти</ListItemText>
-                </MenuItem>
-              </Menu>
-            </Box>
-          )}
-        </Toolbar>
-      </AppBarStyled>
+      {/* Кастомный тайтл-бар */}
+      <TitleBar />
       
-      {/* Боковое меню */}
-      <Drawer
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: drawerWidth,
-            boxSizing: 'border-box',
-          },
-        }}
-        variant="persistent"
+      {error && (
+        <Alert severity="error" sx={{ position: 'fixed', top: TITLE_BAR_HEIGHT, left: 0, right: 0, zIndex: 9999 }}>
+          Произошла ошибка: {error}
+          <Button variant="outlined" size="small" onClick={() => setError(null)} sx={{ ml: 2 }}>
+            Закрыть
+          </Button>
+        </Alert>
+      )}
+      
+      {/* Основная панель навигации */}
+      <AppBarStyled open={open} handleDrawerToggle={handleDrawerToggle} drawerWidth={drawerWidth} />
+      
+      {/* Боковая панель - теперь абсолютно позиционирована */}
+      <DrawerStyled
+        variant={isMobile ? 'temporary' : 'persistent'}
         anchor="left"
         open={open}
+        onClose={handleDrawerToggle}
+        sx={{
+          position: 'absolute',
+          top: `calc(${TITLE_BAR_HEIGHT}px + 64px)`,
+          left: 0,
+          bottom: 0,
+          height: 'auto',
+          zIndex: 0
+        }}
       >
-        <DrawerHeader>
-          <Box sx={{ display: 'flex', alignItems: 'center', p: 1 }}>
-            <Avatar 
-              sx={{ 
-                bgcolor: 'primary.main',
-                width: 40,
-                height: 40,
-                mr: 1
-              }}
-            >
-              T2
-            </Avatar>
-            <Typography variant="h6" noWrap>
-              T2 Mobile
-            </Typography>
-          </Box>
-          <IconButton onClick={handleDrawerClose}>
-            <MenuIcon />
-          </IconButton>
-        </DrawerHeader>
-        
-        <Divider />
-        
-        <List>
-          {menuItems.map((item) => (
-            <ListItem key={item.text} disablePadding>
-              <ListItemButton 
-                selected={location.pathname === item.path}
-                onClick={() => navigate(item.path)}
-              >
-                <ListItemIcon>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText primary={item.text} />
-              </ListItemButton>
-            </ListItem>
-          ))}
+        <Divider sx={{ backgroundColor: '#9d4edd33' }} />
+        <List component="nav">
+          <MenuItems />
         </List>
-      </Drawer>
-      
-      {/* Основное содержимое */}
+      </DrawerStyled>
+
+      {/* Основной контент */}
       <Main open={open}>
-        <DrawerHeader />
-        <Suspense fallback={<LoadingComponent />}>
-          <Routes>
-            {/* Маршруты администратора */}
-            <Route path="/" element={
-              <ProtectedRoute requireAdmin={true}>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/customers" element={
-              <ProtectedRoute requireAdmin={true}>
-                <Customers />
-              </ProtectedRoute>
-            } />
-            <Route path="/customers/:id" element={
-              <ProtectedRoute requireAdmin={true}>
-                <CustomerDetails />
-              </ProtectedRoute>
-            } />
-            <Route path="/sales" element={
-              <ProtectedRoute requireAdmin={true}>
-                <Sales />
-              </ProtectedRoute>
-            } />
-            <Route path="/sales/new" element={
-              <ProtectedRoute requireAdmin={true}>
-                <NewSale />
-              </ProtectedRoute>
-            } />
-            
-            {/* Общие маршруты */}
-            <Route path="/settings" element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            } />
-            
-            {/* Маршруты клиента */}
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <UserProfile />
-              </ProtectedRoute>
-            } />
-            
-            {/* Перенаправления */}
-            <Route path="/auth/*" element={<Navigate to="/auth/login" replace />} />
-            <Route path="*" element={
-              <Navigate to={isAdmin && isAdmin() ? '/' : '/profile'} replace />
-            } />
-          </Routes>
-        </Suspense>
+        <ContentContainer>
+          <Suspense fallback={<LoadingComponent />}>
+            <Routes>
+              {/* Маршруты для авторизованных пользователей */}
+              <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} />}>
+                <Route path="/" element={<Dashboard />} />
+                
+                {/* Маршруты только для администратора */}
+                <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} userType="admin" isAdmin={isAdmin} />}>
+                  <Route path="/customers" element={<Customers />} />
+                  <Route path="/customers/:id" element={<CustomerDetails />} />
+                  <Route path="/sales" element={<Sales />} />
+                  <Route path="/sales/new" element={<NewSale />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Route>
+                
+                {/* Маршруты только для клиента */}
+                <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} userType="client" isClient={isClient} />}>
+                  <Route path="/profile" element={<UserProfile />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Route>
+                
+                {/* Перенаправление для авторизованных пользователей */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
+              
+              {/* Маршруты для неавторизованных пользователей */}
+              <Route path="/auth" element={<AuthLayout />}>
+                <Route path="login" element={<Login />} />
+                <Route path="register" element={<Register />} />
+                <Route path="*" element={<Navigate to="/auth/login" replace />} />
+              </Route>
+              
+              {/* Перенаправление по умолчанию */}
+              <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/auth/login"} replace />} />
+            </Routes>
+          </Suspense>
+        </ContentContainer>
       </Main>
+
+      {/* Кнопка добавления */}
+      <FloatingActionButtonStyled 
+        color="primary" 
+        aria-label="add" 
+        onClick={handleNewSaleClick}
+        open={open}
+      >
+        <AddIcon />
+      </FloatingActionButtonStyled>
     </Box>
   );
 }

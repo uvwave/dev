@@ -21,31 +21,45 @@ import { AuthContext } from '../../context/AuthContext';
 
 // Стилизованные компоненты
 const AuthPaper = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(4),
-  marginTop: theme.spacing(8),
+  padding: theme.spacing(2),
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
-  maxWidth: 450,
-  margin: '0 auto',
+  width: '100%',
   borderRadius: 12,
-  boxShadow: '0 8px 20px rgba(0,0,0,0.1)',
+  boxShadow: '0 8px 20px rgba(0,0,0,0.2)',
+  border: '1px solid #9d4edd33',
+  background: '#22223b',
+  marginTop: theme.spacing(2)
 }));
 
 const LogoBox = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
-  marginBottom: theme.spacing(4),
+  marginBottom: theme.spacing(2),
+}));
+
+const LogoText = styled(Typography)(({ theme }) => ({
+  fontWeight: '500',
+  background: 'linear-gradient(45deg, #9d4edd, #e0aaff)',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
 }));
 
 const Form = styled('form')(({ theme }) => ({
   width: '100%',
-  marginTop: theme.spacing(2),
+  marginTop: theme.spacing(1),
 }));
 
 const SubmitButton = styled(Button)(({ theme }) => ({
-  margin: theme.spacing(3, 0, 2),
+  margin: theme.spacing(2, 0, 1),
   padding: theme.spacing(1),
+  background: 'linear-gradient(45deg, #7b2cbf 30%, #9d4edd 90%)',
+  boxShadow: '0 3px 8px rgba(123, 44, 191, 0.3)',
+  '&:hover': {
+    background: 'linear-gradient(45deg, #9d4edd 30%, #c77dff 90%)',
+    boxShadow: '0 4px 10px rgba(157, 78, 221, 0.4)',
+  },
 }));
 
 const Login = () => {
@@ -133,23 +147,20 @@ const Login = () => {
     <Container maxWidth="sm">
       <AuthPaper elevation={3}>
         <LogoBox>
-          <Typography 
-            variant="h4" 
-            component="h1" 
-            color="primary" 
-            fontWeight="500"
-            sx={{ display: 'flex', alignItems: 'center' }}
+          <LogoText
+            variant="h5" 
+            component="h1"
           >
             T2 Mobile
-          </Typography>
+          </LogoText>
         </LogoBox>
         
-        <Typography variant="h5" gutterBottom>
+        <Typography variant="h6" gutterBottom>
           Вход в систему
         </Typography>
         
-        <Typography variant="body2" color="text.secondary" align="center" gutterBottom>
-          Введите ваши учетные данные для входа
+        <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 1 }}>
+          Введите данные для входа
         </Typography>
         
         {error && (
@@ -171,7 +182,7 @@ const Login = () => {
         <Form onSubmit={handleLogin}>
           <TextField
             variant="outlined"
-            margin="normal"
+            margin="dense"
             required
             fullWidth
             id="email"
@@ -182,11 +193,12 @@ const Login = () => {
             value={email}
             onChange={handleEmailChange}
             disabled={loading}
+            size="small"
           />
           
           <TextField
             variant="outlined"
-            margin="normal"
+            margin="dense"
             required
             fullWidth
             name="password"
@@ -197,6 +209,7 @@ const Login = () => {
             value={password}
             onChange={handlePasswordChange}
             disabled={loading}
+            size="small"
           />
           
           <SubmitButton
@@ -210,7 +223,7 @@ const Login = () => {
             {loading ? 'Выполняется вход...' : 'Войти'}
           </SubmitButton>
           
-          <Box sx={{ mt: 2, textAlign: 'center' }}>
+          <Box sx={{ mt: 1.5, textAlign: 'center' }}>
             <Typography variant="body2">
               У вас нет аккаунта?{' '}
               <Link 
@@ -219,20 +232,26 @@ const Login = () => {
                   e.preventDefault();
                   navigate('/auth/register');
                 }}
-                color="primary"
+                sx={{ 
+                  color: '#9d4edd',
+                  textDecoration: 'none',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                  }
+                }}
               >
                 Зарегистрироваться
               </Link>
             </Typography>
           </Box>
           
-          <Divider sx={{ my: 3 }} />
+          <Divider sx={{ my: 2 }} />
           
           <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
               Тестовые аккаунты:<br />
-              Администратор: admin@t2mobile.ru / admin123<br />
-              Клиент: client@example.com / client123
+              admin@t2mobile.ru / admin123<br />
+              client@example.com / client123
             </Typography>
           </Box>
         </Form>

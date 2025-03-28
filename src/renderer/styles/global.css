@@ -1,0 +1,135 @@
+/* Глобальные стили для всего приложения */
+
+/* Сбросы и базовые стили */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, 
+body, 
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Roboto', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #1a1a2e;
+  color: #e2e2e2;
+}
+
+/* Скроллбары */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: #22223b;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #9d4edd;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #c77dff;
+}
+
+/* Выделение текста */
+::selection {
+  background-color: rgba(157, 78, 221, 0.3);
+  color: #ffffff;
+}
+
+/* Анимации */
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Стилизация элементов, не захваченных темой MUI */
+a {
+  color: #9d4edd;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+a:hover {
+  color: #c77dff;
+  text-decoration: underline;
+}
+
+code {
+  background-color: #333355;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.9em;
+}
+
+/* Специальные эффекты */
+.neon-text {
+  color: #e0aaff;
+  text-shadow: 0 0 5px rgba(157, 78, 221, 0.5), 
+               0 0 10px rgba(157, 78, 221, 0.3);
+}
+
+.neon-border {
+  border: 1px solid #9d4edd !important;
+  box-shadow: 0 0 5px rgba(157, 78, 221, 0.5), 
+              0 0 10px rgba(157, 78, 221, 0.3) !important;
+}
+
+.gradient-text {
+  background: linear-gradient(45deg, #9d4edd, #e0aaff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Стили для нетягового перетягивания окна */
+.app-drag-region {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.app-no-drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+/* Стили для карточек */
+.card-hover-effect {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Стили для форм */
+.form-card {
+  border: 1px solid rgba(157, 78, 221, 0.2);
+  background-color: #22223b;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  padding: 24px;
+} 
