@@ -68,9 +68,9 @@ const ThemeSwitch = styled(Switch)(({ theme }) => ({
       color: '#fff',
       transform: 'translateX(22px)',
       '& .MuiSwitch-thumb:before': {
-        backgroundImage: `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 20 20"><path fill="${encodeURIComponent(
+        backgroundImage: `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24"><path fill="${encodeURIComponent(
           '#fff',
-        )}" d="M4.2 2.5l-.7 1.8-1.8.7 1.8.7.7 1.8.6-1.8L6.7 5l-1.9-.7-.6-1.8zm15 8.3a6.7 6.7 0 11-6.6-6.6 5.8 5.8 0 006.6 6.6z"/></svg>')`,
+        )}" d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>')`,
       },
       '& + .MuiSwitch-track': {
         opacity: 1,
@@ -91,9 +91,9 @@ const ThemeSwitch = styled(Switch)(({ theme }) => ({
       top: 0,
       backgroundRepeat: 'no-repeat',
       backgroundPosition: 'center',
-      backgroundImage: `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 20 20"><path fill="${encodeURIComponent(
+      backgroundImage: `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24"><path fill="${encodeURIComponent(
         '#fff',
-      )}" d="M9.305 1.667V3.75h1.389V1.667h-1.39zm-4.707 1.95l-.982.982L5.09 6.072l.982-.982-1.473-1.473zm10.802 0L13.927 5.09l.982.982 1.473-1.473-.982-.982zM10 5.139a4.872 4.872 0 00-4.862 4.86A4.872 4.872 0 0010 14.862 4.872 4.872 0 0014.86 10 4.872 4.872 0 0010 5.139zm0 1.389A3.462 3.462 0 0113.471 10a3.462 3.462 0 01-3.473 3.472A3.462 3.462 0 016.527 10 3.462 3.462 0 0110 6.528zM1.665 9.305v1.39h2.083v-1.39H1.666zm14.583 0v1.39h2.084v-1.39h-2.084zM5.09 13.928L3.616 15.4l.982.982 1.473-1.473-.982-.982zm9.82 0l-.982.982 1.473 1.473.982-.982-1.473-1.473zM9.305 16.25v2.083h1.389V16.25h-1.39z"/></svg>')`,
+      )}" d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06z"/></svg>')`,
     },
   },
   '& .MuiSwitch-track': {
@@ -149,6 +149,11 @@ const Settings = () => {
   const [companyName, setCompanyName] = useState('T2 Mobile');
   const [editingCompany, setEditingCompany] = useState(false);
   
+  // Обработчик переключения темы
+  const handleThemeChange = () => {
+    setDarkMode(!darkMode);
+  };
+
   // Обработка изменения темы
   const handleThemeToggle = () => {
     console.log('Переключение темы: с', darkMode, 'на', !darkMode);
@@ -248,7 +253,7 @@ const Settings = () => {
         </Alert>
       )}
       
-      {/* Секция внешнего вида */}
+      {/* Секция управления внешним видом - доступна всем пользователям */}
       <SettingsSection elevation={2}>
         <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
           <ThemeIcon sx={{ mr: 1, color: theme.palette.mode === 'dark' ? '#9d4edd' : '#0072e5' }} />
@@ -261,154 +266,128 @@ const Settings = () => {
             : 'rgba(0, 114, 229, 0.15)' 
         }} />
         
-        {/* Переключатель темы */}
-        <List>
-          <ListItem>
-            <ListItemIcon>
-              {darkMode ? (
-                <DarkModeIcon sx={{ color: theme.palette.mode === 'dark' ? '#9d4edd' : '#5d00e0' }} />
-              ) : (
-                <LightModeIcon sx={{ color: theme.palette.mode === 'dark' ? '#9d4edd' : '#0072e5' }} />
-              )}
-            </ListItemIcon>
-            <ListItemText 
-              primary={darkMode ? "Темная тема" : "Светлая тема"} 
-              secondary="Изменение цветовой схемы приложения" 
-              primaryTypographyProps={{ fontWeight: 'medium' }}
-              secondaryTypographyProps={{ color: theme.palette.mode === 'dark' ? '#cccccc' : '#3a4a5c' }}
-            />
-            <ThemeSwitch
-              checked={darkMode}
-              onChange={handleThemeToggle}
-            />
-          </ListItem>
-        </List>
-        
-        {/* Визуальный выбор темы */}
-        <Grid container spacing={2} sx={{ mt: 2, px: 2 }}>
-          <Grid item xs={12}>
-            <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
-              Выберите тему оформления
-            </Typography>
+        <Box sx={{ p: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 'medium', mb: 1 }}>
+            Выберите тему оформления
+          </Typography>
+          
+          <Grid container spacing={2}>
+            <Grid item xs={6}>
+              <ThemeCard 
+                selected={darkMode} 
+                onClick={() => setDarkMode(true)}
+              >
+                <DarkModeIcon 
+                  sx={{ 
+                    fontSize: 40, 
+                    color: darkMode ? '#9d4edd' : theme.palette.mode === 'dark' ? '#cccccc' : '#3a4a5c' 
+                  }}
+                />
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    fontWeight: darkMode ? 'bold' : 'medium',
+                    color: darkMode ? (theme.palette.mode === 'dark' ? '#9d4edd' : '#0072e5') : 
+                      theme.palette.mode === 'dark' ? '#cccccc' : '#3a4a5c'
+                  }}
+                >
+                  Темная
+                </Typography>
+              </ThemeCard>
+            </Grid>
+            <Grid item xs={6}>
+              <ThemeCard 
+                selected={!darkMode} 
+                onClick={() => setDarkMode(false)}
+              >
+                <LightModeIcon 
+                  sx={{ 
+                    fontSize: 40, 
+                    color: !darkMode ? (theme.palette.mode === 'dark' ? '#9d4edd' : '#0072e5') : 
+                      theme.palette.mode === 'dark' ? '#cccccc' : '#3a4a5c'
+                  }}
+                />
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    fontWeight: !darkMode ? 'bold' : 'medium',
+                    color: !darkMode ? (theme.palette.mode === 'dark' ? '#9d4edd' : '#0072e5') : 
+                      theme.palette.mode === 'dark' ? '#cccccc' : '#3a4a5c'
+                  }}
+                >
+                  Светлая
+                </Typography>
+              </ThemeCard>
+            </Grid>
           </Grid>
           
-          <Grid item xs={6}>
-            <ThemeCard 
-              onClick={selectDarkTheme} 
-              selected={darkMode}
-              elevation={darkMode ? 2 : 0}
-            >
-              <Box 
-                sx={{ 
-                  width: 50, 
-                  height: 50, 
-                  borderRadius: '50%', 
-                  backgroundColor: '#000000',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  border: '2px solid #9d4edd'
-                }}
-              >
-                <DarkModeIcon sx={{ color: '#9d4edd' }} />
-              </Box>
-              <Typography 
-                variant="body2" 
-                fontWeight={darkMode ? 'bold' : 'normal'}
-                sx={{ color: theme.palette.text.primary }}
-              >
-                Темная
-              </Typography>
-            </ThemeCard>
-          </Grid>
-          
-          <Grid item xs={6}>
-            <ThemeCard 
-              onClick={selectLightTheme} 
-              selected={!darkMode}
-              elevation={!darkMode ? 2 : 0}
-            >
-              <Box 
-                sx={{ 
-                  width: 50, 
-                  height: 50, 
-                  borderRadius: '50%', 
-                  backgroundColor: '#ffffff',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  border: '2px solid #0072e5',
-                  boxShadow: '0 0 8px rgba(0, 114, 229, 0.2)'
-                }}
-              >
-                <LightModeIcon sx={{ color: '#0072e5' }} />
-              </Box>
-              <Typography 
-                variant="body2" 
-                fontWeight={!darkMode ? 'bold' : 'normal'}
-                sx={{ color: theme.palette.text.primary }}
-              >
-                Светлая
-              </Typography>
-            </ThemeCard>
-          </Grid>
-        </Grid>
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              mt: 2, 
+              color: theme.palette.mode === 'dark' ? '#cccccc' : '#3a4a5c',
+              fontWeight: theme.palette.mode === 'dark' ? 400 : 500,
+            }}
+          >
+            Выберите тему оформления, которая вам нравится. Светлая тема лучше подходит для яркого освещения, темная - для работы в слабоосвещенных помещениях.
+          </Typography>
+        </Box>
       </SettingsSection>
       
-      {/* Секция информации о компании */}
-      <SettingsSection elevation={2}>
-        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-          <CompanyIcon sx={{ mr: 1, color: theme.palette.mode === 'dark' ? '#9d4edd' : '#0072e5' }} />
-          Информация о компании
-        </Typography>
-        <Divider sx={{ 
-          mb: 2, 
-          backgroundColor: theme.palette.mode === 'dark' 
-            ? 'rgba(157, 78, 221, 0.3)' 
-            : 'rgba(0, 114, 229, 0.15)' 
-        }} />
-        
-        <Box sx={{ p: 2 }}>
-          {editingCompany ? (
-            <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <TextField
-                label="Название компании"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                variant="outlined"
-                fullWidth
-                sx={{ mb: 2 }}
-              />
-              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                <Button 
-                  variant="outlined" 
-                  onClick={cancelEditingCompany}
-                  sx={{ 
-                    borderColor: theme.palette.mode === 'dark' ? 'rgba(157, 78, 221, 0.5)' : 'rgba(93, 0, 224, 0.5)',
-                    color: theme.palette.mode === 'dark' ? '#9d4edd' : '#5d00e0'
-                  }}
-                >
-                  Отмена
-                </Button>
-                <Button 
-                  variant="contained" 
-                  startIcon={<SaveIcon />} 
-                  onClick={saveCompanyInfo}
-                  disabled={loading}
-                  sx={{
-                    bgcolor: theme.palette.mode === 'dark' ? '#9d4edd' : '#0072e5',
-                  }}
-                >
-                  {loading ? 'Сохранение...' : 'Сохранить'}
-                </Button>
+      {/* Секция информации о компании - только для администраторов */}
+      {isAdmin && (
+        <SettingsSection elevation={2}>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+            <CompanyIcon sx={{ mr: 1, color: theme.palette.mode === 'dark' ? '#9d4edd' : '#0072e5' }} />
+            Информация о компании
+          </Typography>
+          <Divider sx={{ 
+            mb: 2, 
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? 'rgba(157, 78, 221, 0.3)' 
+              : 'rgba(0, 114, 229, 0.15)' 
+          }} />
+          
+          <Box sx={{ p: 2 }}>
+            {editingCompany ? (
+              <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  label="Название компании"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  variant="outlined"
+                  fullWidth
+                  sx={{ mb: 2 }}
+                />
+                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                  <Button 
+                    variant="outlined" 
+                    onClick={cancelEditingCompany}
+                    sx={{ 
+                      borderColor: theme.palette.mode === 'dark' ? 'rgba(157, 78, 221, 0.5)' : 'rgba(93, 0, 224, 0.5)',
+                      color: theme.palette.mode === 'dark' ? '#9d4edd' : '#5d00e0'
+                    }}
+                  >
+                    Отмена
+                  </Button>
+                  <Button 
+                    variant="contained" 
+                    startIcon={<SaveIcon />} 
+                    onClick={saveCompanyInfo}
+                    disabled={loading}
+                    sx={{
+                      bgcolor: theme.palette.mode === 'dark' ? '#9d4edd' : '#0072e5',
+                    }}
+                  >
+                    {loading ? 'Сохранение...' : 'Сохранить'}
+                  </Button>
+                </Box>
               </Box>
-            </Box>
-          ) : (
-            <>
-              <Typography variant="body1" fontWeight="medium" sx={{ color: theme.palette.text.primary }}>
-                Название компании: <strong>{companyName}</strong>
-              </Typography>
-              {isAdmin ? (
+            ) : (
+              <>
+                <Typography variant="body1" fontWeight="medium" sx={{ color: theme.palette.text.primary }}>
+                  Название компании: <strong>{companyName}</strong>
+                </Typography>
                 <Button 
                   variant="outlined" 
                   startIcon={<EditIcon />} 
@@ -421,60 +400,58 @@ const Settings = () => {
                 >
                   Изменить
                 </Button>
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Название компании зафиксировано и не может быть изменено.
-                </Typography>
-              )}
-            </>
-          )}
-        </Box>
-      </SettingsSection>
+              </>
+            )}
+          </Box>
+        </SettingsSection>
+      )}
       
-      {/* Секция управления данными */}
-      <SettingsSection elevation={2}>
-        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-          <DataIcon sx={{ mr: 1, color: theme.palette.mode === 'dark' ? '#9d4edd' : '#0072e5' }} />
-          Управление данными
-        </Typography>
-        <Divider sx={{ 
-          mb: 2, 
-          backgroundColor: theme.palette.mode === 'dark' 
-            ? 'rgba(157, 78, 221, 0.3)' 
-            : 'rgba(0, 114, 229, 0.15)' 
-        }} />
-        
-        <Box sx={{ p: 2 }}>
-          <Button 
-            variant="outlined" 
-            color="error" 
-            startIcon={<DeleteIcon />}
-            onClick={handleClearData}
-            sx={{ 
-              borderColor: '#ff5555',
-              color: '#ff5555',
-              '&:hover': { 
-                backgroundColor: '#ff555510',
-                borderColor: '#ff5555'
-              }
-            }}
-          >
-            Очистить все данные
-          </Button>
-          <Typography 
-            variant="caption" 
-            sx={{ 
-              mt: 1, 
-              display: 'block',
-              color: theme.palette.mode === 'dark' ? '#cccccc' : '#3a4a5c' 
-            }}
-          >
-            Это действие удалит всех клиентов, продажи и другие данные. Будьте осторожны.
+      {/* Секция управления данными - только для администраторов */}
+      {isAdmin && (
+        <SettingsSection elevation={2}>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+            <DataIcon sx={{ mr: 1, color: theme.palette.mode === 'dark' ? '#9d4edd' : '#0072e5' }} />
+            Управление данными
           </Typography>
-        </Box>
-      </SettingsSection>
+          <Divider sx={{ 
+            mb: 2, 
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? 'rgba(157, 78, 221, 0.3)' 
+              : 'rgba(0, 114, 229, 0.15)' 
+          }} />
+          
+          <Box sx={{ p: 2 }}>
+            <Button 
+              variant="outlined" 
+              color="error" 
+              startIcon={<DeleteIcon />}
+              onClick={handleClearData}
+              sx={{ 
+                borderColor: '#ff5555',
+                color: '#ff5555',
+                '&:hover': { 
+                  backgroundColor: '#ff555510',
+                  borderColor: '#ff5555'
+                }
+              }}
+            >
+              Очистить все данные
+            </Button>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                mt: 1, 
+                display: 'block',
+                color: theme.palette.mode === 'dark' ? '#cccccc' : '#3a4a5c' 
+              }}
+            >
+              Это действие удалит всех клиентов, продажи и другие данные. Будьте осторожны.
+            </Typography>
+          </Box>
+        </SettingsSection>
+      )}
       
-      {/* Секция о приложении */}
+      {/* Секция о приложении - доступна всем пользователям */}
       <SettingsSection elevation={2}>
         <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
           <InfoIcon sx={{ mr: 1, color: theme.palette.mode === 'dark' ? '#9d4edd' : '#0072e5' }} />

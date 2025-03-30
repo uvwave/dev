@@ -199,16 +199,29 @@ function App() {
   const { language } = useContext(ThemeContext);
   const authContext = useContext(AuthContext);
   
-  // Обработка ошибок в контексте
-  const { isAuthenticated, currentUser, logout, isAdmin, isClient, loading } = 
-    authContext || { 
-      isAuthenticated: false, 
-      currentUser: null, 
-      logout: () => {}, 
-      isAdmin: () => false, 
-      isClient: () => false, 
-      loading: true 
-    };
+  // Получаем данные из контекста авторизации для безопасного доступа
+  const { 
+    isAuthenticated = false,
+    currentUser = null,
+    loading = true,
+    logout = () => {},
+    isAdmin = () => false,
+    isClient = () => false 
+  } = authContext || {};
+  
+  // Элементы меню для администратора и клиента - Определяем локально в App
+  const adminMenuItems = [
+    { text: 'Дашборд', icon: <DashboardIcon />, path: '/' },
+    { text: 'Клиенты', icon: <PeopleIcon />, path: '/customers' },
+    { text: 'Продажи', icon: <ShoppingCartIcon />, path: '/sales' },
+    { text: 'Настройки', icon: <SettingsIcon />, path: '/settings' },
+  ];
+
+  // Элементы меню для клиента
+  const clientMenuItems = [
+    { text: 'Личный кабинет', icon: <AccountCircleIcon />, path: '/profile' },
+    { text: 'Настройки', icon: <SettingsIcon />, path: '/settings' },
+  ];
 
   // Функция для перехода на страницу создания новой продажи
   const handleNewSaleClick = () => {
@@ -277,20 +290,6 @@ function App() {
     
     return 'T2 Mobile';
   };
-
-  // Элементы меню для администратора
-  const adminMenuItems = [
-    { text: 'Дашборд', icon: <DashboardIcon />, path: '/' },
-    { text: 'Клиенты', icon: <PeopleIcon />, path: '/customers' },
-    { text: 'Продажи', icon: <ShoppingCartIcon />, path: '/sales' },
-    { text: 'Настройки', icon: <SettingsIcon />, path: '/settings' },
-  ];
-
-  // Элементы меню для клиента
-  const clientMenuItems = [
-    { text: 'Личный кабинет', icon: <AccountCircleIcon />, path: '/profile' },
-    { text: 'Настройки', icon: <SettingsIcon />, path: '/settings' },
-  ];
 
   // Если произошла ошибка, показываем сообщение об ошибке
   if (error) {
@@ -425,25 +424,30 @@ function App() {
             <Routes>
               {/* Маршруты для авторизованных пользователей */}
               <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} />}>
-                <Route path="/" element={<Dashboard />} />
+                {/* Общие маршруты для всех пользователей */}
+                <Route path="/settings" element={<Settings />} />
+                
+                {/* Маршрут профиля для клиентов */}
+                <Route path="/profile" element={<UserProfile />} />
                 
                 {/* Маршруты только для администратора */}
                 <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} userType="admin" isAdmin={isAdmin} />}>
+                  <Route path="/" element={<Dashboard />} />
                   <Route path="/customers" element={<Customers />} />
                   <Route path="/customers/:id" element={<CustomerDetails />} />
                   <Route path="/sales" element={<Sales />} />
                   <Route path="/sales/new" element={<NewSale />} />
-                  <Route path="/settings" element={<Settings />} />
                 </Route>
                 
-                {/* Маршруты только для клиента */}
-                <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} userType="client" isClient={isClient} />}>
-                  <Route path="/profile" element={<UserProfile />} />
-                  <Route path="/settings" element={<Settings />} />
-                </Route>
+                {/* Перенаправление корневого пути для клиентов */}
+                <Route path="/" element={
+                  isAdmin && isAdmin() 
+                    ? <Dashboard /> 
+                    : <Navigate to="/profile" replace />
+                } />
                 
                 {/* Перенаправление для авторизованных пользователей */}
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<Navigate to={isAdmin() ? "/" : "/profile"} replace />} />
               </Route>
               
               {/* Маршруты для неавторизованных пользователей */}
@@ -454,7 +458,7 @@ function App() {
               </Route>
               
               {/* Перенаправление по умолчанию */}
-              <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/auth/login"} replace />} />
+              <Route path="*" element={<Navigate to={isAuthenticated ? (isAdmin() ? "/" : "/profile") : "/auth/login"} replace />} />
             </Routes>
           </Suspense>
         </ContentContainer>

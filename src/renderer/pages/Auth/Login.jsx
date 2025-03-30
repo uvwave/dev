@@ -10,7 +10,8 @@ import {
   CircularProgress,
   Alert,
   Link,
-  Divider
+  Divider,
+  useTheme
 } from '@mui/material';
 import {
   Login as LoginIcon,
@@ -19,6 +20,47 @@ import {
 import { styled } from '@mui/material/styles';
 import { AuthContext } from '../../context/AuthContext';
 import { ThemeContext } from '../../index';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+
+// Создаем темную тему специально для страниц авторизации
+const darkAuthTheme = createTheme({
+  palette: {
+    mode: 'dark',
+    primary: {
+      main: '#9d4edd',
+      light: '#c77dff',
+      dark: '#7b2cbf',
+      contrastText: '#ffffff',
+    },
+    secondary: {
+      main: '#e0aaff',
+      light: '#f3d5ff',
+      dark: '#b388eb',
+      contrastText: '#1a1a2e',
+    },
+    background: {
+      default: '#000000',
+      paper: '#121212',
+    },
+    text: {
+      primary: '#ffffff',
+      secondary: '#cccccc',
+    },
+    error: {
+      main: '#ff5555',
+    },
+    warning: {
+      main: '#fca311',
+    },
+    info: {
+      main: '#8ecae6',
+    },
+    success: {
+      main: '#2ec4b6',
+    },
+    divider: 'rgba(157, 78, 221, 0.3)',
+  },
+});
 
 // Стилизованные компоненты
 const AuthPaper = styled(Paper)(({ theme }) => ({
@@ -30,7 +72,7 @@ const AuthPaper = styled(Paper)(({ theme }) => ({
   borderRadius: 12,
   boxShadow: '0 8px 20px rgba(0,0,0,0.2)',
   border: '1px solid #9d4edd33',
-  background: theme.palette.mode === 'dark' ? '#22223b' : '#f8fbff',
+  background: '#22223b',
   marginTop: theme.spacing(2),
   color: theme.palette.text.primary,
 }));
@@ -74,7 +116,6 @@ const Login = () => {
   
   const navigate = useNavigate();
   const authContext = useContext(AuthContext);
-  const { darkMode } = useContext(ThemeContext);
   
   useEffect(() => {
     // Проверяем, если AuthContext содержит ошибку
@@ -102,6 +143,12 @@ const Login = () => {
     setError('');
   };
 
+  // Валидация email
+  const validateEmail = (email) => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+  };
+
   // Обработка входа
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -109,6 +156,12 @@ const Login = () => {
     
     if (!email || !password) {
       setError('Пожалуйста, заполните все поля');
+      return;
+    }
+
+    // Проверка формата email
+    if (!validateEmail(email)) {
+      setError('Пожалуйста, введите корректный email (например, example@domain.com)');
       return;
     }
     
@@ -147,139 +200,113 @@ const Login = () => {
   };
 
   return (
-    <Container maxWidth="sm">
-      <AuthPaper elevation={3}>
-        <LogoBox>
-          <LogoText
-            variant="h5" 
-            component="h1"
-          >
-            T2 Mobile
-          </LogoText>
-        </LogoBox>
-        
-        <Typography 
-          variant="h6" 
-          gutterBottom
-          sx={{ color: darkMode ? '#ffffff' : '#0a1929' }}
-        >
-          Вход в систему
-        </Typography>
-        
-        <Typography 
-          variant="body2" 
-          color={darkMode ? "text.secondary" : "#3a4a5c"} 
-          align="center" 
-          sx={{ mb: 1, fontWeight: darkMode ? 400 : 500 }}
-        >
-          Введите данные для входа
-        </Typography>
-        
-        {error && (
-          <Alert 
-            severity="error" 
-            sx={{ width: '100%', mt: 2 }}
-            action={
-              error.includes('Ошибка системы') && (
-                <Button color="inherit" size="small" onClick={handleRefresh}>
-                  Перезагрузить
-                </Button>
-              )
-            }
-          >
-            {error}
-          </Alert>
-        )}
-        
-        <Form onSubmit={handleLogin}>
-          <TextField
-            variant="outlined"
-            margin="dense"
-            required
-            fullWidth
-            id="email"
-            label="Email"
-            name="email"
-            autoComplete="email"
-            autoFocus
-            value={email}
-            onChange={handleEmailChange}
-            disabled={loading}
-            size="small"
-          />
-          
-          <TextField
-            variant="outlined"
-            margin="dense"
-            required
-            fullWidth
-            name="password"
-            label="Пароль"
-            type="password"
-            id="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={handlePasswordChange}
-            disabled={loading}
-            size="small"
-          />
-          
-          <SubmitButton
-            type="submit"
-            fullWidth
-            variant="contained"
-            color="primary"
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} /> : <LoginIcon />}
-          >
-            {loading ? 'Выполняется вход...' : 'Войти'}
-          </SubmitButton>
-          
-          <Box sx={{ mt: 1.5, textAlign: 'center' }}>
-            <Typography variant="body2">
-              У вас нет аккаунта?{' '}
-              <Link 
-                href="#" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate('/auth/register');
-                }}
-                sx={{ 
-                  color: darkMode ? '#9d4edd' : '#0072e5',
-                  textDecoration: 'none',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  }
-                }}
-              >
-                Зарегистрироваться
-              </Link>
-            </Typography>
-          </Box>
-          
-          <Divider sx={{ my: 2 }} />
-          
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography 
-              variant="caption" 
-              color="text.secondary" 
-              sx={{ 
-                fontSize: '0.7rem',
-                '& ::selection': {
-                  backgroundColor: darkMode ? 'rgba(157, 78, 221, 0.3)' : 'rgba(0, 114, 229, 0.4)',
-                  color: darkMode ? '#ffffff' : '#0a1929',
-                  textShadow: 'none'
-                }
-              }}
+    <ThemeProvider theme={darkAuthTheme}>
+      <Container maxWidth="sm">
+        <AuthPaper elevation={3}>
+          <LogoBox>
+            <LogoText
+              variant="h5" 
+              component="h1"
             >
-              Тестовые аккаунты:<br />
-              admin@t2mobile.ru / admin123<br />
-              client@example.com / client123
-            </Typography>
-          </Box>
-        </Form>
-      </AuthPaper>
-    </Container>
+              T2 Mobile
+            </LogoText>
+          </LogoBox>
+          
+          <Typography 
+            variant="h6" 
+            gutterBottom
+            sx={{ color: '#ffffff' }}
+          >
+            Вход в систему
+          </Typography>
+          
+          <Typography 
+            variant="body2" 
+            color="text.secondary" 
+            align="center" 
+            sx={{ mb: 1, fontWeight: 400 }}
+          >
+            Введите данные для входа
+          </Typography>
+          
+          {error && (
+            <Alert 
+              severity="error" 
+              sx={{ width: '100%', mt: 2 }}
+              action={
+                error.includes('Ошибка системы') && (
+                  <Button color="inherit" size="small" onClick={handleRefresh}>
+                    Перезагрузить
+                  </Button>
+                )
+              }
+            >
+              {error}
+            </Alert>
+          )}
+          
+          <Form noValidate onSubmit={handleLogin}>
+            <TextField
+              variant="outlined"
+              margin="normal"
+              required
+              fullWidth
+              id="email"
+              label="Email"
+              name="email"
+              autoComplete="email"
+              value={email}
+              onChange={handleEmailChange}
+              autoFocus
+            />
+            <TextField
+              variant="outlined"
+              margin="normal"
+              required
+              fullWidth
+              name="password"
+              label="Пароль"
+              type="password"
+              id="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={handlePasswordChange}
+            />
+            
+            <SubmitButton
+              type="submit"
+              fullWidth
+              variant="contained"
+              color="primary"
+              disabled={loading}
+              startIcon={loading ? <CircularProgress size={24} color="inherit" /> : <LoginIcon />}
+            >
+              {loading ? 'Вход...' : 'Войти'}
+            </SubmitButton>
+            
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Нет аккаунта?{' '}
+                <Link 
+                  component="button" 
+                  variant="body2" 
+                  onClick={() => navigate('/auth/register')}
+                  sx={{ 
+                    color: '#9d4edd',
+                    textDecoration: 'none',
+                    '&:hover': {
+                      textDecoration: 'underline',
+                    } 
+                  }}
+                >
+                  Зарегистрироваться
+                </Link>
+              </Typography>
+            </Box>
+          </Form>
+        </AuthPaper>
+      </Container>
+    </ThemeProvider>
   );
 };
 

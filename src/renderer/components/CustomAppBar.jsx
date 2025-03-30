@@ -45,7 +45,7 @@ const StyledToolbar = styled(Toolbar)(({ theme }) => ({
   '& .MuiIconButton-root': {
     color: theme.palette.mode === 'dark' ? '#ffffff' : '#121212',
     '&:hover': {
-      backgroundColor: 'rgba(157, 78, 221, 0.1)',
+      backgroundColor: 'rgba(0, 114, 229, 0.1)',
     },
   }
 }));
@@ -60,7 +60,7 @@ const ToolbarSection = styled(Box)({
 const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
   const navigate = useNavigate();
   const authContext = useContext(AuthContext);
-  const { currentUser: user, logout } = authContext || { currentUser: null, logout: () => {} };
+  const { currentUser: user, logout, isClient } = authContext || { currentUser: null, logout: () => {}, isClient: () => false };
   const [anchorEl, setAnchorEl] = useState(null);
   const [notificationsAnchorEl, setNotificationsAnchorEl] = useState(null);
   const { darkMode } = useContext(ThemeContext);
@@ -90,6 +90,12 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
     handleClose();
     navigate('/settings');
   };
+  
+  // Переход на страницу профиля
+  const handleProfileClick = () => {
+    handleClose();
+    navigate('/profile');
+  };
 
   // Выход из системы
   const handleLogout = async () => {
@@ -110,13 +116,13 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
             sx={{
               marginRight: 2,
               color: darkMode ? '#ffffff' : '#0a1929',
-              transform: open ? 'rotate(0deg)' : 'rotate(180deg)',
-              transition: theme => theme.transitions.create('transform', {
-                duration: theme.transitions.duration.standard,
-              }),
+              cursor: 'pointer',
+              '&:hover': {
+                backgroundColor: 'rgba(0, 114, 229, 0.1)',
+              },
             }}
           >
-            <ChevronLeftIcon />
+            {open ? <ChevronLeftIcon /> : <ChevronRightIcon />}
           </IconButton>
           <Typography 
             variant="h6" 
@@ -183,6 +189,16 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
                 </ListItemText>
               </MenuItem>
               
+              {/* Добавляем пункт для перехода в личный кабинет для клиентов */}
+              {isClient && isClient() && (
+                <MenuItem onClick={handleProfileClick}>
+                  <ListItemIcon>
+                    <AccountCircleIcon fontSize="small" sx={{ color: darkMode ? '#9d4edd' : '#0072e5' }} />
+                  </ListItemIcon>
+                  <ListItemText>Личный кабинет</ListItemText>
+                </MenuItem>
+              )}
+              
               <MenuItem onClick={handleSettingsClick}>
                 <ListItemIcon>
                   <SettingsIcon fontSize="small" sx={{ color: darkMode ? '#9d4edd' : '#0072e5' }} />
@@ -202,6 +218,6 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
       </StyledToolbar>
     </CustomAppBarStyled>
   );
-};
+}
 
 export default CustomAppBar; 

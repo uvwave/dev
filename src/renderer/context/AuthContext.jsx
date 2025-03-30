@@ -196,7 +196,8 @@ export const AuthProvider = ({ children }) => {
   // Проверка, является ли пользователь администратором
   const isAdmin = () => {
     try {
-      return currentUser?.type === USER_TYPES.ADMIN;
+      // Безопасная проверка типа пользователя
+      return currentUser && currentUser.type === USER_TYPES.ADMIN;
     } catch (err) {
       console.error('Ошибка при проверке роли админа:', err);
       return false;
@@ -206,7 +207,8 @@ export const AuthProvider = ({ children }) => {
   // Проверка, является ли пользователь клиентом
   const isClient = () => {
     try {
-      return currentUser?.type === USER_TYPES.CLIENT;
+      // Безопасная проверка типа пользователя
+      return currentUser && currentUser.type === USER_TYPES.CLIENT;
     } catch (err) {
       console.error('Ошибка при проверке роли клиента:', err);
       return false;

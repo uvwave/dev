@@ -33,7 +33,8 @@ import {
   Phone as PhoneIcon,
   Email as EmailIcon,
   Inventory2 as PackageIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { AuthContext } from '../../context/AuthContext';
@@ -56,6 +57,22 @@ const PackageCard = styled(Card)(({ theme, selected }) => ({
   },
 }));
 
+// Валидация полей формы
+const validateName = (name) => {
+  return name.trim().length >= 2; // Имя не менее 2 символов
+};
+
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const validatePhone = (phone) => {
+  // Проверка формата телефона ("+71234567890" или "89991234567" и т.д.)
+  const phoneRegex = /^\+?[0-9]{10,15}$/;
+  return phone === '' || phoneRegex.test(phone.trim());
+};
+
 const UserProfile = () => {
   console.log('Рендеринг UserProfile');
   const { currentUser, updateUserData } = useContext(AuthContext);
@@ -74,6 +91,11 @@ const UserProfile = () => {
   const [error, setError] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
+  const [errors, setErrors] = useState({
+    name: '',
+    email: '',
+    phone: ''
+  });
 
   // Загрузка данных пользователя при монтировании компонента
   useEffect(() => {
@@ -92,14 +114,64 @@ const UserProfile = () => {
 
   // Обработка изменения полей формы
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setUserData({
       ...userData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
+    
+    // Валидация поля при изменении
+    validateField(name, value);
+  };
+  
+  // Валидация отдельного поля
+  const validateField = (fieldName, value) => {
+    let errorMessage = '';
+    
+    switch(fieldName) {
+      case 'name':
+        if (!validateName(value)) {
+          errorMessage = 'Имя должно содержать не менее 2 символов';
+        }
+        break;
+      case 'email':
+        if (!validateEmail(value)) {
+          errorMessage = 'Введите корректный email';
+        }
+        break;
+      case 'phone':
+        if (value && !validatePhone(value)) {
+          errorMessage = 'Неверный формат телефона';
+        }
+        break;
+      default:
+        break;
+    }
+    
+    setErrors({
+      ...errors,
+      [fieldName]: errorMessage
+    });
+    
+    return errorMessage === '';
+  };
+  
+  // Валидация всей формы
+  const validateForm = () => {
+    const nameValid = validateField('name', userData.name);
+    const emailValid = validateField('email', userData.email);
+    const phoneValid = validateField('phone', userData.phone);
+    
+    return nameValid && emailValid && phoneValid;
   };
 
   // Обработка сохранения данных профиля
   const handleSaveProfile = () => {
+    if (!validateForm()) {
+      setError('Пожалуйста, исправьте ошибки в форме');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     
@@ -240,6 +312,8 @@ const UserProfile = () => {
                   onChange={handleChange}
                   variant="outlined"
                   margin="normal"
+                  error={!!errors.name}
+                  helperText={errors.name}
                 />
                 <TextField
                   fullWidth
@@ -249,6 +323,8 @@ const UserProfile = () => {
                   onChange={handleChange}
                   variant="outlined"
                   margin="normal"
+                  error={!!errors.email}
+                  helperText={errors.email}
                 />
                 <TextField
                   fullWidth
@@ -258,6 +334,8 @@ const UserProfile = () => {
                   onChange={handleChange}
                   variant="outlined"
                   margin="normal"
+                  error={!!errors.phone}
+                  helperText={errors.phone}
                 />
               </Box>
             ) : (
