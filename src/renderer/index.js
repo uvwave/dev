@@ -90,48 +90,86 @@ export const ThemeContext = createContext();
 
 // Создаем и экспортируем провайдер контекста
 export const ThemeContextProvider = ({ children }) => {
-  const [darkMode, setDarkMode] = useState(
-    localStorage.getItem('darkMode') === 'true' || true // По умолчанию включена темная тема
-  );
-  const [language, setLanguage] = useState(localStorage.getItem('language') || 'ru');
+  // Инициализируем состояние из localStorage или используем темную тему по умолчанию
+  const [darkMode, setDarkMode] = useState(() => {
+    try {
+      const savedMode = localStorage.getItem('darkMode');
+      // Если в localStorage есть значение, преобразуем его в boolean
+      if (savedMode !== null) {
+        return savedMode === 'true';
+      }
+      // Если нет, используем тёмную тему по умолчанию
+      return true;
+    } catch (e) {
+      console.error('Ошибка при чтении darkMode из localStorage:', e);
+      return true;
+    }
+  });
+  
+  const [language, setLanguage] = useState(() => {
+    try {
+      return localStorage.getItem('language') || 'ru';
+    } catch (e) {
+      console.error('Ошибка при чтении language из localStorage:', e);
+      return 'ru';
+    }
+  });
 
+  // Сохраняем darkMode в localStorage при его изменении
   useEffect(() => {
-    localStorage.setItem('darkMode', darkMode);
+    try {
+      localStorage.setItem('darkMode', String(darkMode));
+      console.log('Saved darkMode to localStorage:', darkMode);
+    } catch (e) {
+      console.error('Ошибка при сохранении darkMode в localStorage:', e);
+    }
   }, [darkMode]);
 
+  // Сохраняем language в localStorage при его изменении
   useEffect(() => {
-    localStorage.setItem('language', language);
+    try {
+      localStorage.setItem('language', language);
+    } catch (e) {
+      console.error('Ошибка при сохранении language в localStorage:', e);
+    }
   }, [language]);
 
-  // Создаем тему на основе выбранного режима и фиолетово-неоновой цветовой схемы
+  // Создаем тему на основе выбранного режима и цветовой схемы
   const theme = useMemo(() => createTheme({
     palette: {
       mode: darkMode ? 'dark' : 'light',
       primary: {
-        main: '#9d4edd',
-        light: '#c77dff',
-        dark: '#7b2cbf',
+        // В темной теме основной цвет - фиолетовый, в светлой - синий
+        main: darkMode ? '#9d4edd' : '#0072e5',
+        light: darkMode ? '#c77dff' : '#42a5f5',
+        dark: darkMode ? '#7b2cbf' : '#0059b2',
         contrastText: '#ffffff',
       },
       secondary: {
-        main: '#e0aaff',
-        light: '#f3d5ff',
-        dark: '#b388eb',
-        contrastText: '#1a1a2e',
+        // В темной теме - светло-фиолетовый, в светлой - фиолетовый (акцентный)
+        main: darkMode ? '#e0aaff' : '#5d00e0',
+        light: darkMode ? '#f3d5ff' : '#8f7fff',
+        dark: darkMode ? '#b388eb' : '#4600a8',
+        contrastText: darkMode ? '#1a1a2e' : '#ffffff',
       },
       background: darkMode ? {
-        default: '#1a1a2e',
-        paper: '#22223b',
+        // Темная тема - черный фон
+        default: '#000000',
+        paper: '#121212',
       } : {
-        default: '#f5f5f7',
-        paper: '#ffffff',
+        // Светлая тема - белый с голубыми оттенками
+        default: '#ffffff',
+        paper: '#f8fbff',
       },
       text: darkMode ? {
-        primary: '#e2e2e2',
-        secondary: '#b8b8b8',
+        // Текст для темной темы - белый и светло-серый
+        primary: '#ffffff',
+        secondary: '#cccccc',
       } : {
-        primary: '#333333',
-        secondary: '#666666',
+        // Текст для светлой темы - темно-синий и серый
+        // Делаем текст более темным, чтобы его было лучше видно
+        primary: '#0a1929', // Темно-синий
+        secondary: '#3a4a5c', // Темно-серый с синим оттенком
       },
       error: {
         main: '#ff5555',
@@ -140,31 +178,66 @@ export const ThemeContextProvider = ({ children }) => {
         main: '#fca311',
       },
       info: {
-        main: '#3a86ff',
+        main: darkMode ? '#8ecae6' : '#0099ff',
       },
       success: {
         main: '#2ec4b6',
       },
-      divider: darkMode ? 'rgba(157, 78, 221, 0.2)' : 'rgba(157, 78, 221, 0.1)',
+      divider: darkMode ? 'rgba(157, 78, 221, 0.3)' : 'rgba(0, 114, 229, 0.15)',
     },
     typography: {
       fontFamily: '"Roboto", "Arial", sans-serif',
       h1: {
         fontWeight: 700,
+        color: darkMode ? '#ffffff' : '#0a1929',
       },
       h2: {
         fontWeight: 600,
+        color: darkMode ? '#ffffff' : '#0a1929',
       },
       h3: {
         fontWeight: 600,
+        color: darkMode ? '#ffffff' : '#0a1929',
       },
       h4: {
         fontWeight: 600,
+        color: darkMode ? '#ffffff' : '#0a1929',
       },
       h5: {
         fontWeight: 500,
+        color: darkMode ? '#ffffff' : '#0a1929',
       },
       h6: {
+        fontWeight: 500,
+        color: darkMode ? '#ffffff' : '#0a1929',
+      },
+      subtitle1: {
+        fontWeight: 500,
+        color: darkMode ? '#ffffff' : '#0a1929',
+      },
+      subtitle2: {
+        fontWeight: 500,
+        color: darkMode ? '#ffffff' : '#0a1929',
+      },
+      body1: {
+        fontWeight: darkMode ? 400 : 500,
+        color: darkMode ? '#ffffff' : '#0a1929',
+      },
+      body2: {
+        fontWeight: darkMode ? 400 : 500,
+        color: darkMode ? '#cccccc' : '#3a4a5c',
+      },
+      button: {
+        fontWeight: 500,
+        textTransform: 'none',
+      },
+      caption: {
+        fontSize: '0.75rem',
+        color: darkMode ? '#cccccc' : '#3a4a5c',
+        fontWeight: darkMode ? 400 : 500,
+      },
+      overline: {
+        textTransform: 'uppercase',
         fontWeight: 500,
       },
     },
@@ -177,11 +250,26 @@ export const ThemeContextProvider = ({ children }) => {
             fontWeight: 500,
           },
           containedPrimary: {
-            background: 'linear-gradient(45deg, #7b2cbf 30%, #9d4edd 90%)',
-            boxShadow: '0 3px 8px rgba(123, 44, 191, 0.3)',
+            background: darkMode 
+              ? 'linear-gradient(45deg, #7b2cbf 30%, #9d4edd 90%)'
+              : 'linear-gradient(45deg, #0059b2 30%, #42a5f5 90%)',
+            boxShadow: darkMode 
+              ? '0 3px 8px rgba(123, 44, 191, 0.3)'
+              : '0 3px 8px rgba(0, 114, 229, 0.3)',
             '&:hover': {
-              background: 'linear-gradient(45deg, #9d4edd 30%, #c77dff 90%)',
-              boxShadow: '0 4px 10px rgba(157, 78, 221, 0.4)',
+              background: darkMode 
+                ? 'linear-gradient(45deg, #9d4edd 30%, #c77dff 90%)'
+                : 'linear-gradient(45deg, #0072e5 30%, #64b5f6 90%)',
+              boxShadow: darkMode 
+                ? '0 4px 10px rgba(157, 78, 221, 0.4)'
+                : '0 4px 10px rgba(0, 114, 229, 0.4)',
+            },
+          },
+          outlined: {
+            borderColor: darkMode ? 'rgba(157, 78, 221, 0.5)' : 'rgba(93, 0, 224, 0.5)',
+            '&:hover': {
+              borderColor: darkMode ? '#9d4edd' : '#5d00e0',
+              backgroundColor: darkMode ? 'rgba(157, 78, 221, 0.1)' : 'rgba(93, 0, 224, 0.08)',
             },
           },
         },
@@ -190,14 +278,22 @@ export const ThemeContextProvider = ({ children }) => {
         styleOverrides: {
           root: {
             borderRadius: 12,
-            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)',
+            boxShadow: darkMode 
+              ? '0 8px 16px rgba(0, 0, 0, 0.3)'
+              : '0 8px 16px rgba(0, 0, 0, 0.1)',
           },
         },
       },
       MuiAppBar: {
         styleOverrides: {
           root: {
-            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.2)',
+            boxShadow: darkMode 
+              ? '0 4px 10px rgba(0, 0, 0, 0.3)'
+              : '0 4px 10px rgba(0, 0, 0, 0.1)',
+            backgroundColor: darkMode ? '#000000' : '#ffffff',
+            borderBottom: darkMode 
+              ? '1px solid rgba(157, 78, 221, 0.2)'
+              : '1px solid rgba(0, 114, 229, 0.1)',
           },
         },
       },
@@ -205,7 +301,9 @@ export const ThemeContextProvider = ({ children }) => {
         styleOverrides: {
           root: {
             '&:hover': {
-              backgroundColor: 'rgba(157, 78, 221, 0.1)',
+              backgroundColor: darkMode 
+                ? 'rgba(157, 78, 221, 0.15)'
+                : 'rgba(0, 114, 229, 0.1)',
             },
           },
         },
@@ -214,15 +312,15 @@ export const ThemeContextProvider = ({ children }) => {
         styleOverrides: {
           switchBase: {
             '&.Mui-checked': {
-              color: '#9d4edd',
+              color: darkMode ? '#9d4edd' : '#0072e5',
               '& + .MuiSwitch-track': {
-                backgroundColor: '#7b2cbf',
+                backgroundColor: darkMode ? '#7b2cbf' : '#0059b2',
                 opacity: 0.5,
               },
             },
           },
           track: {
-            backgroundColor: '#555',
+            backgroundColor: darkMode ? '#555' : '#cbd5e1',
             opacity: 0.3,
           },
           thumb: {
@@ -230,6 +328,52 @@ export const ThemeContextProvider = ({ children }) => {
           },
         },
       },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundImage: 'none',
+          }
+        }
+      },
+      MuiDrawer: {
+        styleOverrides: {
+          paper: {
+            backgroundColor: darkMode ? '#000000' : '#ffffff',
+            borderRight: darkMode 
+              ? '1px solid rgba(157, 78, 221, 0.2)'
+              : '1px solid rgba(0, 114, 229, 0.1)',
+          }
+        }
+      },
+      MuiInputBase: {
+        styleOverrides: {
+          input: {
+            color: darkMode ? '#ffffff' : '#0a1929',
+          },
+        }
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: darkMode ? 'rgba(157, 78, 221, 0.3)' : 'rgba(0, 114, 229, 0.2)',
+            },
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: darkMode ? 'rgba(157, 78, 221, 0.5)' : 'rgba(0, 114, 229, 0.4)',
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: darkMode ? '#9d4edd' : '#0072e5',
+            },
+          },
+        }
+      },
+      MuiChip: {
+        styleOverrides: {
+          outlined: {
+            borderColor: darkMode ? 'rgba(157, 78, 221, 0.3)' : 'rgba(93, 0, 224, 0.3)',
+          }
+        }
+      }
     },
   }), [darkMode]);
 

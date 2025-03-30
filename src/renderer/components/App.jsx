@@ -146,23 +146,23 @@ const DrawerStyled = styled(Drawer)(({ theme }) => ({
   '& .MuiDrawer-paper': {
     width: drawerWidth,
     boxSizing: 'border-box',
-    backgroundColor: '#1a1a2e',
-    color: '#e2e2e2',
-    borderRight: '1px solid #9d4edd33',
+    backgroundColor: theme.palette.mode === 'dark' ? '#0a1929' : '#e1f5fe',
+    color: theme.palette.mode === 'dark' ? '#e2e2e2' : '#0a1929',
+    borderRight: theme.palette.mode === 'dark' ? '1px solid rgba(0, 114, 229, 0.3)' : '1px solid rgba(0, 114, 229, 0.2)',
     marginTop: TITLE_BAR_HEIGHT,
     height: `calc(100% - ${TITLE_BAR_HEIGHT}px)`,
     overflow: 'auto',
     position: 'fixed',
   },
   '& .MuiListItemIcon-root': {
-    color: '#9d4edd',
+    color: '#0072e5',
   },
   '& .MuiListItemButton-root:hover': {
-    backgroundColor: '#9d4edd33',
+    backgroundColor: 'rgba(0, 114, 229, 0.1)',
   },
   '& .MuiListItemButton-root.Mui-selected': {
-    backgroundColor: '#9d4edd22',
-    borderLeft: '3px solid #9d4edd',
+    backgroundColor: 'rgba(0, 114, 229, 0.08)',
+    borderLeft: '3px solid #0072e5',
   },
 }));
 
@@ -172,9 +172,9 @@ const FloatingActionButtonStyled = styled(Fab)(({ theme, open }) => ({
   bottom: theme.spacing(2),
   right: theme.spacing(2), // Меняем позицию с left на right
   zIndex: 999,
-  backgroundColor: '#9d4edd',
+  backgroundColor: '#0072e5',
   '&:hover': {
-    backgroundColor: '#7b2cbf',
+    backgroundColor: '#0059b2',
   },
 }));
 
@@ -460,15 +460,17 @@ function App() {
         </ContentContainer>
       </Main>
 
-      {/* Кнопка добавления */}
-      <FloatingActionButtonStyled 
-        color="primary" 
-        aria-label="add" 
-        onClick={handleNewSaleClick}
-        open={open}
-      >
-        <AddIcon />
-      </FloatingActionButtonStyled>
+      {/* Кнопка добавления - отображается только для администратора */}
+      {isAdmin && isAdmin() && (
+        <FloatingActionButtonStyled 
+          color="primary" 
+          aria-label="add" 
+          onClick={handleNewSaleClick}
+          open={open}
+        >
+          <AddIcon />
+        </FloatingActionButtonStyled>
+      )}
     </Box>
   );
 }

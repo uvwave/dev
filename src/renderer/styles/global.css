@@ -1,56 +1,126 @@
-/* Глобальные стили для всего приложения */
+/* Глобальные стили для приложения */
 
-/* Сбросы и базовые стили */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+:root {
+  /* Цветовая схема для темной темы */
+  --dark-bg-primary: #000000;
+  --dark-bg-secondary: #121212;
+  --dark-primary: #9d4edd;
+  --dark-primary-light: #c77dff;
+  --dark-primary-dark: #7b2cbf;
+  --dark-text-primary: #ffffff;
+  --dark-text-secondary: #cccccc;
+  
+  /* Цветовая схема для светлой темы */
+  --light-bg-primary: #ffffff;
+  --light-bg-secondary: #f8fbff;
+  --light-primary: #0072e5;
+  --light-primary-light: #42a5f5;
+  --light-primary-dark: #0059b2;
+  --light-text-primary: #0a1929;
+  --light-text-secondary: #3a4a5c;
 }
 
-html, 
-body, 
-#root {
+/* Базовые стили для HTML и body */
+html, body {
+  margin: 0;
+  padding: 0;
   height: 100%;
   width: 100%;
   overflow: hidden;
-}
-
-body {
-  font-family: 'Roboto', 'Segoe UI', sans-serif;
+  font-family: 'Roboto', 'Arial', sans-serif;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #1a1a2e;
-  color: #e2e2e2;
 }
 
-/* Скроллбары */
+/* Темная тема */
+[data-theme="dark"] {
+  --background-color: var(--dark-bg-primary);
+  --paper-color: var(--dark-bg-secondary);
+  --text-primary: var(--dark-text-primary);
+  --text-secondary: var(--dark-text-secondary);
+  --accent-color: var(--dark-primary);
+  --accent-light: var(--dark-primary-light);
+  --divider-color: rgba(157, 78, 221, 0.3);
+}
+
+/* Светлая тема */
+[data-theme="light"] {
+  --background-color: var(--light-bg-primary);
+  --paper-color: var(--light-bg-secondary);
+  --text-primary: var(--light-text-primary);
+  --text-secondary: var(--light-text-secondary);
+  --accent-color: var(--light-primary);
+  --accent-light: var(--light-primary-light);
+  --divider-color: rgba(0, 114, 229, 0.15);
+}
+
+/* Улучшенная видимость текста в светлой теме */
+body[data-theme="light"] {
+  color: var(--text-primary);
+}
+
+body[data-theme="light"] h1,
+body[data-theme="light"] h2,
+body[data-theme="light"] h3,
+body[data-theme="light"] h4,
+body[data-theme="light"] h5,
+body[data-theme="light"] h6 {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+body[data-theme="light"] p,
+body[data-theme="light"] span,
+body[data-theme="light"] div {
+  color: var(--text-primary);
+}
+
+/* Фиолетовые акценты для светлой темы */
+body[data-theme="light"] .accent-purple {
+  color: var(--dark-primary) !important;
+}
+
+body[data-theme="light"] .border-purple {
+  border-color: var(--dark-primary) !important;
+}
+
+/* Стили для скроллбаров */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background-color: #22223b;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #9d4edd;
-  border-radius: 4px;
+  background: var(--dark-primary);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #c77dff;
+  background: var(--dark-primary-dark);
 }
 
-/* Выделение текста */
-::selection {
-  background-color: rgba(157, 78, 221, 0.3);
-  color: #ffffff;
+body[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 114, 229, 0.2);
 }
 
-/* Анимации */
+body[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 114, 229, 0.4);
+}
+
+/* Для фокуса выделения полей */
+:focus {
+  outline-color: var(--dark-primary);
+}
+
+/* Различные эффекты для анимаций */
 .fade-in {
-  animation: fadeIn 0.3s ease-in-out;
+  animation: fadeIn 0.5s ease-in-out;
 }
 
 @keyframes fadeIn {
@@ -62,6 +132,63 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Эффект выделения текста */
+::selection {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+body[data-theme="light"] ::selection {
+  background-color: var(--light-primary);
+  color: white;
+}
+
+/* Более конкретные стили для выделения текста в светлой теме */
+body[data-theme="light"] a::selection,
+body[data-theme="light"] .MuiTypography-root::selection,
+body[data-theme="light"] .MuiInput-root::selection,
+body[data-theme="light"] .MuiInputBase-input::selection,
+body[data-theme="light"] input::selection,
+body[data-theme="light"] span::selection,
+body[data-theme="light"] p::selection,
+body[data-theme="light"] div::selection {
+  background-color: rgba(0, 114, 229, 0.3);
+  color: var(--light-text-primary);
+}
+
+/* Выделение для светлой темы в области тестовых аккаунтов */
+body[data-theme="light"] .MuiTypography-caption::selection,
+body[data-theme="light"] .MuiTypography-caption *::selection,
+body[data-theme="light"] .MuiDivider-root + .MuiBox-root *::selection {
+  background-color: rgba(0, 114, 229, 0.5);
+  color: var(--light-text-primary);
+  text-shadow: none;
+}
+
+/* Отдельные стили для выделения в полях ввода */
+body[data-theme="light"] .MuiOutlinedInput-input::selection,
+body[data-theme="light"] .MuiFilledInput-input::selection,
+body[data-theme="light"] .MuiInputBase-input::selection {
+  background-color: rgba(0, 114, 229, 0.3);
+  color: var(--light-text-primary);
+}
+
+/* Эффект наведения на интерактивные элементы */
+.hover-effect {
+  transition: all 0.2s ease-in-out;
+}
+
+.hover-effect:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Контрастный текст для лучшей читаемости */
+.contrast-text {
+  font-weight: 500;
+  color: var(--light-text-primary) !important;
 }
 
 /* Стилизация элементов, не захваченных темой MUI */
@@ -132,4 +259,58 @@ code {
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
   border-radius: 12px;
   padding: 24px;
+}
+
+/* Улучшенная видимость для светлой темы */
+.MuiTypography-root {
+  transition: color 0.3s ease;
+}
+
+body[data-theme="light"] .MuiPaper-root {
+  color: var(--light-text-primary);
+}
+
+body[data-theme="light"] .MuiTypography-root {
+  color: var(--light-text-primary);
+}
+
+body[data-theme="light"] .MuiTypography-body2,
+body[data-theme="light"] .MuiTypography-caption {
+  color: var(--light-text-secondary);
+}
+
+/* Стили для темной темы */
+body[data-theme="dark"] {
+  background-color: var(--dark-bg-primary);
+  color: var(--dark-text-primary);
+}
+
+/* Класс для фиолетового акцента */
+.purple-accent {
+  color: var(--dark-primary) !important;
+}
+
+/* Улучшенный стиль скроллбара */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--dark-primary);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--dark-primary-dark);
+}
+
+/* Стили для фокуса */
+*:focus {
+  outline-color: var(--dark-primary);
 } 

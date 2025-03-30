@@ -14,7 +14,7 @@ const TITLE_BAR_HEIGHT = 38;
 // Стилизованный контейнер для тайтл-бара
 const TitleBarContainer = styled(Box)(({ theme }) => ({
   height: TITLE_BAR_HEIGHT,
-  backgroundColor: '#1a1a2e',
+  backgroundColor: '#0a1929',
   color: '#e2e2e2',
   display: 'flex',
   alignItems: 'center',
@@ -24,7 +24,7 @@ const TitleBarContainer = styled(Box)(({ theme }) => ({
   left: 0,
   right: 0,
   zIndex: theme.zIndex.drawer + 2,
-  borderBottom: '1px solid #9d4edd33',
+  borderBottom: '1px solid rgba(0, 114, 229, 0.2)',
   padding: '0 8px',
   boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
 }));
@@ -44,7 +44,7 @@ const WindowButton = styled(IconButton)(({ theme, color }) => ({
   '&:hover': {
     backgroundColor: color === 'close' 
       ? 'rgba(255, 85, 85, 0.2)' 
-      : 'rgba(157, 78, 221, 0.1)',
+      : 'rgba(0, 114, 229, 0.1)',
     color: color === 'close' ? '#ff5555' : '#ffffff'
   },
   '& .MuiSvgIcon-root': {
@@ -64,9 +64,9 @@ const LogoIcon = styled(Box)({
   width: 20,
   height: 20,
   borderRadius: '50%',
-  backgroundColor: '#9d4edd',
+  backgroundColor: '#0072e5',
   marginRight: 8,
-  boxShadow: '0 0 5px rgba(157, 78, 221, 0.5)',
+  boxShadow: '0 0 5px rgba(0, 114, 229, 0.5)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',

@@ -12,6 +12,7 @@ import {
 } from '@mui/icons-material';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
+import { ThemeContext } from '../index';
 
 // Стилизованный компонент для кнопки меню
 const StyledListItemButton = styled(ListItemButton)(({ theme, selected }) => ({
@@ -29,7 +30,7 @@ const StyledListItemButton = styled(ListItemButton)(({ theme, selected }) => ({
       fontWeight: 'bold',
       color: theme.palette.primary.main,
     },
-    borderLeft: '3px solid #9d4edd',
+    borderLeft: `3px solid ${theme.palette.primary.main}`,
   },
   '&:hover': {
     backgroundColor: alpha(theme.palette.primary.main, 0.08),
@@ -39,7 +40,7 @@ const StyledListItemButton = styled(ListItemButton)(({ theme, selected }) => ({
 // Стилизованная иконка для меню
 const StyledListItemIcon = styled(ListItemIcon)(({ theme }) => ({
   minWidth: 40,
-  color: '#9d4edd',
+  color: theme.palette.primary.main,
 }));
 
 // Стилизованный текст для меню
@@ -55,6 +56,7 @@ const MenuItems = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const authContext = useContext(AuthContext);
+  const { darkMode } = useContext(ThemeContext);
   
   // Функции для проверки роли пользователя
   const isAdmin = authContext?.isAdmin || (() => false);

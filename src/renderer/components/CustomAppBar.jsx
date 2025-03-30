@@ -15,7 +15,8 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { 
-  Menu as MenuIcon, 
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
   Notifications as NotificationsIcon, 
   AccountCircle as AccountCircleIcon,
   Settings as SettingsIcon,
@@ -23,15 +24,16 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { ThemeContext } from '../index';
 
 // Константа для высоты тайтл-бара
 const TITLE_BAR_HEIGHT = 38;
 
 // Стилизованная панель приложения
 const CustomAppBarStyled = styled(AppBar)(({ theme }) => ({
-  backgroundColor: '#1a1a2e',
-  borderBottom: '1px solid #9d4edd33',
-  boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+  backgroundColor: theme.palette.mode === 'dark' ? '#0a1929' : '#e1f5fe',
+  borderBottom: theme.palette.mode === 'dark' ? '1px solid rgba(0, 114, 229, 0.3)' : '1px solid rgba(0, 114, 229, 0.2)',
+  boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
   marginTop: TITLE_BAR_HEIGHT,
   zIndex: theme.zIndex.drawer + 1,
 }));
@@ -61,6 +63,7 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
   const { currentUser: user, logout } = authContext || { currentUser: null, logout: () => {} };
   const [anchorEl, setAnchorEl] = useState(null);
   const [notificationsAnchorEl, setNotificationsAnchorEl] = useState(null);
+  const { darkMode } = useContext(ThemeContext);
   
   // Открытие меню пользователя
   const handleMenu = (event) => {
@@ -101,15 +104,19 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
         <ToolbarSection>
           <IconButton
             color="inherit"
-            aria-label="open drawer"
+            aria-label={open ? "скрыть меню" : "показать меню"}
             onClick={handleDrawerToggle}
             edge="start"
             sx={{
               marginRight: 2,
-              color: '#ffffff',
+              color: darkMode ? '#ffffff' : '#0a1929',
+              transform: open ? 'rotate(0deg)' : 'rotate(180deg)',
+              transition: theme => theme.transitions.create('transform', {
+                duration: theme.transitions.duration.standard,
+              }),
             }}
           >
-            <MenuIcon />
+            <ChevronLeftIcon />
           </IconButton>
           <Typography 
             variant="h6" 
@@ -117,9 +124,7 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
             component="div"
             sx={{ 
               fontWeight: 'bold',
-              background: 'linear-gradient(45deg, #9d4edd, #e0aaff)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
+              color: '#0072e5',
             }}
           >
             T2 Mobile
@@ -136,13 +141,13 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
                 aria-controls="menu-appbar"
                 aria-haspopup="true"
                 onClick={handleMenu}
-                sx={{ color: '#ffffff' }}
+                sx={{ color: darkMode ? '#ffffff' : '#0a1929' }}
               >
                 {user?.avatar ? (
                   <Avatar 
                     src={user.avatar} 
                     alt={user?.name || "User"} 
-                    sx={{ width: 32, height: 32, border: '2px solid #9d4edd' }}
+                    sx={{ width: 32, height: 32, border: `2px solid ${darkMode ? '#9d4edd' : '#0072e5'}` }}
                   />
                 ) : (
                   <AccountCircleIcon />
@@ -158,10 +163,10 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
               onClose={handleClose}
               PaperProps={{
                 sx: {
-                  backgroundColor: '#22223b',
-                  border: '1px solid #9d4edd33',
-                  boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
-                  color: '#ffffff'
+                  backgroundColor: darkMode ? '#22223b' : '#ffffff',
+                  border: darkMode ? '1px solid #9d4edd33' : '1px solid rgba(0, 114, 229, 0.2)',
+                  boxShadow: darkMode ? '0 4px 10px rgba(0,0,0,0.3)' : '0 4px 10px rgba(0,0,0,0.1)',
+                  color: darkMode ? '#ffffff' : '#0a1929'
                 }
               }}
             >
@@ -180,7 +185,7 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
               
               <MenuItem onClick={handleSettingsClick}>
                 <ListItemIcon>
-                  <SettingsIcon fontSize="small" sx={{ color: '#9d4edd' }} />
+                  <SettingsIcon fontSize="small" sx={{ color: darkMode ? '#9d4edd' : '#0072e5' }} />
                 </ListItemIcon>
                 <ListItemText>Настройки</ListItemText>
               </MenuItem>

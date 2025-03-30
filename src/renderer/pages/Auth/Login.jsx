@@ -18,6 +18,7 @@ import {
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { AuthContext } from '../../context/AuthContext';
+import { ThemeContext } from '../../index';
 
 // Стилизованные компоненты
 const AuthPaper = styled(Paper)(({ theme }) => ({
@@ -29,8 +30,9 @@ const AuthPaper = styled(Paper)(({ theme }) => ({
   borderRadius: 12,
   boxShadow: '0 8px 20px rgba(0,0,0,0.2)',
   border: '1px solid #9d4edd33',
-  background: '#22223b',
-  marginTop: theme.spacing(2)
+  background: theme.palette.mode === 'dark' ? '#22223b' : '#f8fbff',
+  marginTop: theme.spacing(2),
+  color: theme.palette.text.primary,
 }));
 
 const LogoBox = styled(Box)(({ theme }) => ({
@@ -72,6 +74,7 @@ const Login = () => {
   
   const navigate = useNavigate();
   const authContext = useContext(AuthContext);
+  const { darkMode } = useContext(ThemeContext);
   
   useEffect(() => {
     // Проверяем, если AuthContext содержит ошибку
@@ -155,11 +158,20 @@ const Login = () => {
           </LogoText>
         </LogoBox>
         
-        <Typography variant="h6" gutterBottom>
+        <Typography 
+          variant="h6" 
+          gutterBottom
+          sx={{ color: darkMode ? '#ffffff' : '#0a1929' }}
+        >
           Вход в систему
         </Typography>
         
-        <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 1 }}>
+        <Typography 
+          variant="body2" 
+          color={darkMode ? "text.secondary" : "#3a4a5c"} 
+          align="center" 
+          sx={{ mb: 1, fontWeight: darkMode ? 400 : 500 }}
+        >
           Введите данные для входа
         </Typography>
         
@@ -233,7 +245,7 @@ const Login = () => {
                   navigate('/auth/register');
                 }}
                 sx={{ 
-                  color: '#9d4edd',
+                  color: darkMode ? '#9d4edd' : '#0072e5',
                   textDecoration: 'none',
                   '&:hover': {
                     textDecoration: 'underline',
@@ -248,7 +260,18 @@ const Login = () => {
           <Divider sx={{ my: 2 }} />
           
           <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+            <Typography 
+              variant="caption" 
+              color="text.secondary" 
+              sx={{ 
+                fontSize: '0.7rem',
+                '& ::selection': {
+                  backgroundColor: darkMode ? 'rgba(157, 78, 221, 0.3)' : 'rgba(0, 114, 229, 0.4)',
+                  color: darkMode ? '#ffffff' : '#0a1929',
+                  textShadow: 'none'
+                }
+              }}
+            >
               Тестовые аккаунты:<br />
               admin@t2mobile.ru / admin123<br />
               client@example.com / client123
