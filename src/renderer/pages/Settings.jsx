@@ -144,7 +144,7 @@ const Settings = () => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
-  
+
   // Состояния для управления информацией о компании
   const [companyName, setCompanyName] = useState('T2 Mobile');
   const [editingCompany, setEditingCompany] = useState(false);
@@ -336,29 +336,29 @@ const Settings = () => {
       
       {/* Секция информации о компании - только для администраторов */}
       {isAdmin && (
-        <SettingsSection elevation={2}>
-          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+      <SettingsSection elevation={2}>
+        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
             <CompanyIcon sx={{ mr: 1, color: theme.palette.mode === 'dark' ? '#9d4edd' : '#0072e5' }} />
-            Информация о компании
-          </Typography>
+          Информация о компании
+        </Typography>
           <Divider sx={{ 
             mb: 2, 
             backgroundColor: theme.palette.mode === 'dark' 
               ? 'rgba(157, 78, 221, 0.3)' 
               : 'rgba(0, 114, 229, 0.15)' 
           }} />
-          
-          <Box sx={{ p: 2 }}>
+        
+        <Box sx={{ p: 2 }}>
             {editingCompany ? (
               <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <TextField
-                  label="Название компании"
+          <TextField
+            label="Название компании"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  variant="outlined"
-                  fullWidth
-                  sx={{ mb: 2 }}
-                />
+            variant="outlined"
+            fullWidth
+            sx={{ mb: 2 }}
+          />
                 <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
                   <Button 
                     variant="outlined" 
@@ -402,30 +402,30 @@ const Settings = () => {
                 </Button>
               </>
             )}
-          </Box>
-        </SettingsSection>
+        </Box>
+      </SettingsSection>
       )}
       
       {/* Секция управления данными - только для администраторов */}
       {isAdmin && (
-        <SettingsSection elevation={2}>
-          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+      <SettingsSection elevation={2}>
+        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
             <DataIcon sx={{ mr: 1, color: theme.palette.mode === 'dark' ? '#9d4edd' : '#0072e5' }} />
-            Управление данными
-          </Typography>
+          Управление данными
+        </Typography>
           <Divider sx={{ 
             mb: 2, 
             backgroundColor: theme.palette.mode === 'dark' 
               ? 'rgba(157, 78, 221, 0.3)' 
               : 'rgba(0, 114, 229, 0.15)' 
           }} />
-          
-          <Box sx={{ p: 2 }}>
-            <Button 
-              variant="outlined" 
-              color="error" 
-              startIcon={<DeleteIcon />}
-              onClick={handleClearData}
+        
+        <Box sx={{ p: 2 }}>
+          <Button 
+            variant="outlined" 
+            color="error" 
+            startIcon={<DeleteIcon />}
+            onClick={handleClearData}
               sx={{ 
                 borderColor: '#ff5555',
                 color: '#ff5555',
@@ -434,9 +434,9 @@ const Settings = () => {
                   borderColor: '#ff5555'
                 }
               }}
-            >
-              Очистить все данные
-            </Button>
+          >
+            Очистить все данные
+          </Button>
             <Typography 
               variant="caption" 
               sx={{ 
@@ -445,10 +445,10 @@ const Settings = () => {
                 color: theme.palette.mode === 'dark' ? '#cccccc' : '#3a4a5c' 
               }}
             >
-              Это действие удалит всех клиентов, продажи и другие данные. Будьте осторожны.
-            </Typography>
-          </Box>
-        </SettingsSection>
+            Это действие удалит всех клиентов, продажи и другие данные. Будьте осторожны.
+          </Typography>
+        </Box>
+      </SettingsSection>
       )}
       
       {/* Секция о приложении - доступна всем пользователям */}
