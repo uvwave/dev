@@ -169,7 +169,7 @@ const Login = () => {
     setError('');
     
     try {
-      const result = login(email, password);
+      const result = await login(email, password);
       console.log('Результат входа:', result);
       
       if (result.success) {

@@ -83,50 +83,66 @@ export const AuthProvider = ({ children }) => {
   }, [isAuthenticated, currentUser]);
 
   // Функция входа пользователя
-  const login = (email, password) => {
+  const login = async (email, password) => {
     try {
       console.log('Попытка входа:', email);
       
-      // Здесь будет логика проверки учетных данных
-      // Сейчас это просто имитация для демонстрации
-      
-      // Пример администратора
-      if (email === 'admin@t2mobile.ru' && password === 'admin123') {
-        const adminUser = {
-          id: 'admin1',
-          email: email,
-          name: 'Администратор',
-          type: USER_TYPES.ADMIN,
-          phone: '+7 (999) 123-45-67'
-        };
+      // Проверка наличия API
+      if (!window.api || !window.api.auth) {
+        console.error('API аутентификации недоступно');
         
-        console.log('Успешный вход администратора:', adminUser);
-        setCurrentUser(adminUser);
-        setIsAuthenticated(true);
-        localStorage.setItem('currentUser', JSON.stringify(adminUser));
-        return { success: true, user: adminUser };
+        // Используем резервный вариант для демо, если API недоступно
+        // Пример администратора
+        if (email === 'admin@t2mobile.ru' && password === 'admin123') {
+          const adminUser = {
+            id: 'admin1',
+            email: email,
+            name: 'Администратор',
+            type: USER_TYPES.ADMIN,
+            phone: '+7 (999) 123-45-67'
+          };
+          
+          console.log('Успешный вход администратора (резервный):', adminUser);
+          setCurrentUser(adminUser);
+          setIsAuthenticated(true);
+          localStorage.setItem('currentUser', JSON.stringify(adminUser));
+          return { success: true, user: adminUser };
+        }
+        
+        // Пример клиента
+        if (email === 'client@example.com' && password === 'client123') {
+          const clientUser = {
+            id: 'client1',
+            email: email,
+            name: 'Иван Петров',
+            type: USER_TYPES.CLIENT,
+            package: null,
+            phone: '+7 (999) 765-43-21'
+          };
+          
+          console.log('Успешный вход клиента (резервный):', clientUser);
+          setCurrentUser(clientUser);
+          setIsAuthenticated(true);
+          localStorage.setItem('currentUser', JSON.stringify(clientUser));
+          return { success: true, user: clientUser };
+        }
+        
+        return { success: false, error: 'API аутентификации недоступно и данные не совпадают с демо учетными записями' };
       }
       
-      // Пример клиента
-      if (email === 'client@example.com' && password === 'client123') {
-        const clientUser = {
-          id: 'client1',
-          email: email,
-          name: 'Иван Петров',
-          type: USER_TYPES.CLIENT,
-          package: null,
-          phone: '+7 (999) 765-43-21'
-        };
-        
-        console.log('Успешный вход клиента:', clientUser);
-        setCurrentUser(clientUser);
+      // Используем API для проверки учетных данных
+      const result = await window.api.auth.login({ email, password });
+      
+      if (result.success) {
+        console.log('Успешный вход пользователя через API:', result.user);
+        setCurrentUser(result.user);
         setIsAuthenticated(true);
-        localStorage.setItem('currentUser', JSON.stringify(clientUser));
-        return { success: true, user: clientUser };
+        localStorage.setItem('currentUser', JSON.stringify(result.user));
+      } else {
+        console.log('Неудачная попытка входа через API:', result.error);
       }
       
-      console.log('Неудачная попытка входа');
-      return { success: false, error: 'Неверный email или пароль' };
+      return result;
     } catch (err) {
       console.error('Ошибка при входе:', err);
       return { success: false, error: 'Произошла ошибка при входе: ' + err.message };

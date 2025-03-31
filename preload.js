@@ -2,6 +2,11 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 // Предоставление API из main процесса в renderer процесс через контекстный мост
 contextBridge.exposeInMainWorld('api', {
+  // Аутентификация
+  auth: {
+    login: (credentials) => ipcRenderer.invoke('auth-login', credentials)
+  },
+
   // Клиенты
   customers: {
     getAll: () => ipcRenderer.invoke('get-customers'),

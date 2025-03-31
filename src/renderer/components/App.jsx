@@ -123,18 +123,18 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 const AppBarStyled = styled(CustomAppBar, {
   shouldForwardProp: (prop) => prop !== 'open',
 })(({ theme, open }) => ({
-  transition: theme.transitions.create(['margin', 'width'], {
-    easing: theme.transitions.easing.sharp,
-    duration: theme.transitions.duration.leavingScreen,
-  }),
-  ...(open && {
-    width: `calc(100% - ${drawerWidth}px)`,
-    marginLeft: `${drawerWidth}px`,
     transition: theme.transitions.create(['margin', 'width'], {
-      easing: theme.transitions.easing.easeOut,
-      duration: theme.transitions.duration.enteringScreen,
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.leavingScreen,
     }),
-  }),
+    ...(open && {
+      width: `calc(100% - ${drawerWidth}px)`,
+      marginLeft: `${drawerWidth}px`,
+      transition: theme.transitions.create(['margin', 'width'], {
+        easing: theme.transitions.easing.easeOut,
+        duration: theme.transitions.duration.enteringScreen,
+      }),
+    }),
   marginTop: `${TITLE_BAR_HEIGHT}px`,
 }));
 
@@ -244,7 +244,7 @@ function App() {
   // Если это мобильное устройство, закрыть панель по умолчанию
   useEffect(() => {
     if (isMobile) {
-      setOpen(false);
+    setOpen(false);
     }
   }, [isMobile]);
 
@@ -402,7 +402,7 @@ function App() {
         anchor="left"
         open={open}
         onClose={handleDrawerToggle}
-        sx={{
+              sx={{ 
           position: 'absolute',
           top: `calc(${TITLE_BAR_HEIGHT}px + 64px)`,
           left: 0,
@@ -416,12 +416,12 @@ function App() {
           <MenuItems />
         </List>
       </DrawerStyled>
-
+      
       {/* Основной контент */}
       <Main open={open}>
         <ContentContainer>
           <Suspense fallback={<LoadingComponent />}>
-            <Routes>
+        <Routes>
               {/* Маршруты для авторизованных пользователей */}
               <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} />}>
                 {/* Общие маршруты для всех пользователей */}
@@ -433,10 +433,10 @@ function App() {
                 {/* Маршруты только для администратора */}
                 <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} userType="admin" isAdmin={isAdmin} />}>
                   <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/customers" element={<Customers />} />
-                  <Route path="/customers/:id" element={<CustomerDetails />} />
-                  <Route path="/sales" element={<Sales />} />
-                  <Route path="/sales/new" element={<NewSale />} />
+          <Route path="/customers" element={<Customers />} />
+          <Route path="/customers/:id" element={<CustomerDetails />} />
+          <Route path="/sales" element={<Sales />} />
+          <Route path="/sales/new" element={<NewSale />} />
                 </Route>
                 
                 {/* Перенаправление корневого пути в зависимости от роли */}
@@ -467,7 +467,7 @@ function App() {
                     : "/auth/login"
                 } replace />
               } />
-            </Routes>
+        </Routes>
           </Suspense>
         </ContentContainer>
       </Main>
