@@ -23,8 +23,8 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     console.log('AuthProvider - useEffect запущен');
     
-    // Сбрасываем данные авторизации для исправления проблемы с приложением
-    localStorage.removeItem('currentUser');
+    // // Сбрасываем данные авторизации для исправления проблемы с приложением
+    // localStorage.removeItem('currentUser');
     
     const loadUserFromStorage = () => {
       try {

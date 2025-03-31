@@ -26,15 +26,23 @@ const StyledListItem = styled(ListItem)(({ theme, active }) => ({
   '& .MuiListItemIcon-root': {
     color: active ? theme.palette.primary.contrastText : theme.palette.text.primary,
   },
+  '&.Mui-disabled': {
+    opacity: 1, // Отменяем затухание для отключенного элемента
+  },
 }));
 
 const MenuItems = () => {
   const location = useLocation();
-  const { isAdmin } = useContext(AuthContext);
+  const { isAdmin, currentUser } = useContext(AuthContext);
+
+  console.log('Текущий путь:', location.pathname);
+  console.log('Текущий пользователь:', currentUser);
+  console.log('isAdmin функция существует:', !!isAdmin);
+  console.log('Результат isAdmin():', isAdmin && isAdmin());
 
   // Элементы меню для администратора
   const adminMenuItems = [
-    { text: 'Дашборд', icon: <DashboardIcon />, path: '/' },
+    { text: 'Дашборд', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Клиенты', icon: <PeopleIcon />, path: '/customers' },
     { text: 'Продажи', icon: <ShoppingCartIcon />, path: '/sales' },
     { text: 'Настройки', icon: <SettingsIcon />, path: '/settings' },
@@ -46,21 +54,22 @@ const MenuItems = () => {
     { text: 'Настройки', icon: <SettingsIcon />, path: '/settings' },
   ];
 
-  // По умолчанию используем меню для клиентов
-  let menuItems = clientMenuItems;
+  // Определяем, является ли текущий пользователь администратором
+  const userIsAdmin = isAdmin && isAdmin();
+  console.log('Пользователь является администратором:', userIsAdmin);
+  
+  // Выбираем меню в зависимости от роли пользователя
+  const menuItems = userIsAdmin ? adminMenuItems : clientMenuItems;
 
-  // Проверяем роль пользователя и выбираем соответствующее меню
-  try {
-    if (isAdmin && isAdmin()) {
-      menuItems = adminMenuItems;
-    } else {
-      menuItems = clientMenuItems;
+  // Проверка активности элемента меню
+  const isItemActive = (itemPath) => {
+    // Для корневого пути '/' проверяем точное совпадение
+    if (itemPath === '/') {
+      return location.pathname === '/' || location.pathname === '';
     }
-  } catch (error) {
-    console.error('Ошибка при определении меню:', error);
-    // Если возникла ошибка, используем меню для клиентов как более безопасное
-    menuItems = clientMenuItems;
-  }
+    // Для других путей проверяем, начинается ли текущий путь с пути элемента меню
+    return location.pathname.startsWith(itemPath);
+  };
 
   return (
     <List>
@@ -70,7 +79,7 @@ const MenuItems = () => {
           component={Link}
           to={item.path}
           key={item.text}
-          active={location.pathname === item.path ? 'true' : undefined}
+          active={isItemActive(item.path) ? 'true' : undefined}
         >
           <ListItemIcon>{item.icon}</ListItemIcon>
           <ListItemText primary={item.text} />

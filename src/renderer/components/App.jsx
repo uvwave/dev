@@ -432,22 +432,24 @@ function App() {
                 
                 {/* Маршруты только для администратора */}
                 <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} userType="admin" isAdmin={isAdmin} />}>
-                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/customers" element={<Customers />} />
                   <Route path="/customers/:id" element={<CustomerDetails />} />
                   <Route path="/sales" element={<Sales />} />
                   <Route path="/sales/new" element={<NewSale />} />
                 </Route>
                 
-                {/* Перенаправление корневого пути для клиентов */}
+                {/* Перенаправление корневого пути в зависимости от роли */}
                 <Route path="/" element={
                   isAdmin && isAdmin() 
-                    ? <Dashboard /> 
+                    ? <Navigate to="/dashboard" replace /> 
                     : <Navigate to="/profile" replace />
                 } />
                 
                 {/* Перенаправление для авторизованных пользователей */}
-                <Route path="*" element={<Navigate to={isAdmin() ? "/" : "/profile"} replace />} />
+                <Route path="*" element={
+                  <Navigate to={isAdmin && isAdmin() ? "/dashboard" : "/profile"} replace />
+                } />
               </Route>
               
               {/* Маршруты для неавторизованных пользователей */}
@@ -458,7 +460,13 @@ function App() {
               </Route>
               
               {/* Перенаправление по умолчанию */}
-              <Route path="*" element={<Navigate to={isAuthenticated ? (isAdmin() ? "/" : "/profile") : "/auth/login"} replace />} />
+              <Route path="*" element={
+                <Navigate to={
+                  isAuthenticated 
+                    ? (isAdmin && isAdmin() ? "/dashboard" : "/profile") 
+                    : "/auth/login"
+                } replace />
+              } />
             </Routes>
           </Suspense>
         </ContentContainer>

@@ -60,7 +60,12 @@ const ToolbarSection = styled(Box)({
 const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
   const navigate = useNavigate();
   const authContext = useContext(AuthContext);
-  const { currentUser: user, logout, isClient } = authContext || { currentUser: null, logout: () => {}, isClient: () => false };
+  const { currentUser: user, logout, isClient, isAdmin } = authContext || { 
+    currentUser: null, 
+    logout: () => {}, 
+    isClient: () => false,
+    isAdmin: () => false
+  };
   const [anchorEl, setAnchorEl] = useState(null);
   const [notificationsAnchorEl, setNotificationsAnchorEl] = useState(null);
   const { darkMode } = useContext(ThemeContext);
@@ -83,6 +88,15 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
   // Закрытие меню уведомлений
   const handleNotificationsClose = () => {
     setNotificationsAnchorEl(null);
+  };
+
+  // Переход на главную/дашборд
+  const handleLogoClick = () => {
+    if (isAdmin && isAdmin()) {
+      navigate('/dashboard');
+    } else if (isClient && isClient()) {
+      navigate('/profile');
+    }
   };
 
   // Переход на страницу настроек
@@ -131,7 +145,12 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
             sx={{ 
               fontWeight: 'bold',
               color: '#0072e5',
+              cursor: 'pointer',
+              '&:hover': {
+                opacity: 0.85,
+              }
             }}
+            onClick={handleLogoClick}
           >
             T2 Mobile
           </Typography>
