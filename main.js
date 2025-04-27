@@ -207,19 +207,70 @@ ipcMain.handle('get-customers', () => {
   });
 });
 
-// Добавление нового клиента (с исправленной обработкой ошибок и авто-созданием пользователя)
+// Добавление нового клиента
 ipcMain.handle('add-customer', async (_, customerData) => {
   const { name, email, phone, address, notes } = customerData;
   console.log('Попытка добавления клиента:', email);
+  let newUserId = null; // Переменная для хранения ID созданного пользователя
 
-  return new Promise((resolve, reject) => {
-    // --- Шаг 1: Добавить клиента в таблицу customers --- 
+  return new Promise(async (resolve, reject) => { // Сделаем Promise async
+    // --- Сначала попытаемся создать пользователя (если есть email) ---
+    if (email) {
+      try {
+        const randomPassword = crypto.randomBytes(8).toString('hex');
+        const hashedPassword = await bcrypt.hash(randomPassword, saltRounds);
+        const userType = 'client';
+        
+        await new Promise((userResolve, userReject) => { // Обернем в Promise для await
+            const userStmt = db.prepare(`
+              INSERT INTO users (email, password, name, phone, type) 
+              VALUES (?, ?, ?, ?, ?)
+            `);
+            userStmt.run(email, hashedPassword, name, phone, userType, function(userErr) {
+              if (userErr) {
+                if (userErr.message.includes('UNIQUE constraint failed')) {
+                  console.warn(`Пользователь с email ${email} уже существует.`);
+                  // Попробуем найти ID существующего пользователя
+                  db.get("SELECT id FROM users WHERE email = ?", [email], (findErr, existingUser) => {
+                      if (existingUser) {
+                          newUserId = existingUser.id;
+                          console.log(`Найден существующий пользователь с ID: ${newUserId}`);
+                      } else {
+                          console.error('Не удалось найти существующего пользователя после ошибки UNIQUE constraint', findErr);
+                      }
+                      userResolve(); // Продолжаем, даже если пользователь уже был
+                  });
+                } else {
+                  console.error('Ошибка при добавлении пользователя в users:', userErr.message);
+                  userReject(new Error('Ошибка создания пользовательского аккаунта')); 
+                }
+              } else {
+                newUserId = this.lastID;
+                console.log(`Пользователь для клиента ${email} успешно создан в users с ID: ${newUserId}`);
+                console.log(`!!! Сгенерирован временный пароль для пользователя ${email}: ${randomPassword} !!! ПЕРЕДАЙТЕ ЕГО КЛИЕНТУ !!!`);
+                userResolve();
+              }
+              userStmt.finalize();
+            });
+        });
+
+      } catch (userCreationError) {
+        console.error('Критическая ошибка при создании пользователя:', userCreationError);
+        // Не прерываем добавление клиента, но сообщаем об ошибке
+        // reject(userCreationError); 
+        // return; 
+      }
+    } else {
+        console.warn('Email не указан, пользовательский аккаунт не создается.');
+    }
+
+    // --- Теперь добавляем клиента в таблицу customers, используя newUserId (если он есть) ---
     const customerStmt = db.prepare(`
-      INSERT INTO customers (name, email, phone, address, notes) 
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO customers (name, email, phone, address, notes, user_id) 
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
-
-    customerStmt.run(name, email, phone, address, notes, async function(customerErr) {
+    
+    customerStmt.run(name, email, phone, address, notes, newUserId, function(customerErr) {
       if (customerErr) {
         console.error('Ошибка при добавлении клиента в customers:', customerErr.message);
         customerStmt.finalize();
@@ -228,52 +279,10 @@ ipcMain.handle('add-customer', async (_, customerData) => {
       }
       
       const newCustomerId = this.lastID;
-      const createdCustomer = { ...customerData, id: newCustomerId };
+      const createdCustomer = { ...customerData, id: newCustomerId, user_id: newUserId }; 
       console.log('Клиент успешно добавлен в customers с ID:', newCustomerId);
       customerStmt.finalize();
-
-      // --- Шаг 2: Попытаться создать пользователя в таблице users --- 
-      if (!email) {
-        console.warn('Невозможно создать пользователя: email клиента не указан.');
-        resolve(createdCustomer);
-        return;
-      }
-
-      try {
-        // Генерируем случайный пароль (например, 8 байт в hex)
-        const randomPassword = crypto.randomBytes(8).toString('hex');
-        console.log(`!!! Сгенерирован временный пароль для пользователя ${email}: ${randomPassword} !!! ПЕРЕДАЙТЕ ЕГО КЛИЕНТУ !!!`);
-        
-        // Хешируем пароль
-        const hashedPassword = await bcrypt.hash(randomPassword, saltRounds);
-        const userType = 'client';
-
-        const userStmt = db.prepare(`
-          INSERT INTO users (email, password, name, phone, type) 
-          VALUES (?, ?, ?, ?, ?)
-        `);
-
-        userStmt.run(email, hashedPassword, name, phone, userType, function(userErr) {
-          if (userErr) {
-            if (userErr.message.includes('UNIQUE constraint failed')) {
-              console.warn(`Пользователь с email ${email} уже существует в users. Новый аккаунт не создан.`);
-              resolve(createdCustomer);
-            } else {
-              console.error('Ошибка при добавлении пользователя в users:', userErr.message);
-              resolve(createdCustomer);
-            }
-          } else {
-            const newUserId = this.lastID;
-            console.log(`Пользователь для клиента ${email} успешно создан в users с ID: ${newUserId}`);
-            resolve(createdCustomer);
-          }
-          userStmt.finalize();
-        });
-
-      } catch (error) {
-        console.error('Критическая ошибка при создании пользователя (хеширование/подготовка запроса):', error);
-        resolve(createdCustomer);
-      }
+      resolve(createdCustomer); // Возвращаем клиента
     });
   });
 });
@@ -725,4 +734,171 @@ ipcMain.handle('auth-register', async (_, userData) => {
         }
     });
   });
+});
+
+// Получение продаж для конкретного пользователя (для ЛК клиента)
+ipcMain.handle('get-user-sales', async (_, userId) => {
+  if (!userId) {
+    console.error('get-user-sales: userId не предоставлен');
+    return []; // Возвращаем пустой массив, если нет ID пользователя
+  }
+  console.log(`Запрос продаж для пользователя с ID: ${userId}`);
+  
+  return new Promise((resolve, reject) => {
+    // Сначала находим customer_id по user_id
+    db.get("SELECT id FROM customers WHERE user_id = ?", [userId], (err, customer) => {
+      if (err) {
+        console.error(`Ошибка при поиске customer_id для user_id ${userId}:`, err.message);
+        reject(new Error('Ошибка при поиске данных клиента'));
+        return;
+      }
+      
+      if (!customer) {
+        console.warn(`Клиент (customer) для пользователя с ID ${userId} не найден.`);
+        resolve([]); // Пользователь есть, но связанного клиента нет - возвращаем пустой массив продаж
+        return;
+      }
+      
+      const customerId = customer.id;
+      console.log(`Найден customer_id: ${customerId} для user_id: ${userId}`);
+      
+      // Теперь ищем продажи по customer_id
+      const query = `
+        SELECT 
+          s.id, 
+          s.customer_id AS customerId, 
+          s.package_id AS packageId, 
+          s.amount, 
+          s.sale_date, 
+          p.name AS packageName
+        FROM sales s
+        JOIN packages p ON s.package_id = p.id
+        WHERE s.customer_id = ?
+        ORDER BY s.sale_date DESC
+      `;
+      
+      db.all(query, [customerId], (salesErr, rows) => {
+        if (salesErr) {
+          console.error(`Ошибка при получении продаж для customer_id ${customerId}:`, salesErr.message);
+          reject(new Error('Ошибка при получении истории продаж'));
+          return;
+        }
+        console.log(`Найдено ${rows.length} продаж для customer_id: ${customerId}`);
+        resolve(rows);
+      });
+    });
+  });
+});
+
+// Смена пароля пользователем
+ipcMain.handle('change-password', async (_, { userId, currentPassword, newPassword }) => {
+  console.log(`Попытка смены пароля для пользователя ID: ${userId}`);
+  
+  // Проверка входных данных
+  if (!userId || !currentPassword || !newPassword) {
+    return { success: false, error: 'Не все данные для смены пароля предоставлены.' };
+  }
+  if (newPassword.length < 6) {
+      return { success: false, error: 'Новый пароль должен быть не менее 6 символов.' };
+  }
+
+  return new Promise((resolve, reject) => {
+    // 1. Найти пользователя и его текущий хеш пароля
+    db.get("SELECT password FROM users WHERE id = ?", [userId], async (err, user) => {
+      if (err) {
+        console.error(`Ошибка поиска пользователя ${userId} для смены пароля:`, err.message);
+        resolve({ success: false, error: 'Ошибка сервера при поиске пользователя.' });
+        return;
+      }
+      if (!user) {
+        console.error(`Пользователь ${userId} не найден для смены пароля.`);
+        resolve({ success: false, error: 'Пользователь не найден.' });
+        return;
+      }
+
+      // 2. Сравнить предоставленный текущий пароль с хешем в базе
+      try {
+        const match = await bcrypt.compare(currentPassword, user.password);
+        if (!match) {
+          console.warn(`Неверный текущий пароль для пользователя ${userId}.`);
+          resolve({ success: false, error: 'Текущий пароль неверен.' });
+          return;
+        }
+
+        // 3. Захешировать новый пароль
+        const newHashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+        // 4. Обновить пароль в базе данных
+        db.run("UPDATE users SET password = ? WHERE id = ?", [newHashedPassword, userId], function(updateErr) {
+          if (updateErr) {
+            console.error(`Ошибка обновления пароля для пользователя ${userId}:`, updateErr.message);
+            resolve({ success: false, error: 'Ошибка сервера при обновлении пароля.' });
+          } else if (this.changes === 0) {
+              console.error(`Не удалось обновить пароль для пользователя ${userId} (возможно, ID не найден).`);
+              resolve({ success: false, error: 'Не удалось обновить пароль.' });
+          } else {
+            console.log(`Пароль для пользователя ${userId} успешно обновлен.`);
+            resolve({ success: true });
+          }
+        });
+      
+      } catch (compareOrHashError) {
+        console.error(`Ошибка bcrypt при смене пароля для ${userId}:`, compareOrHashError);
+        resolve({ success: false, error: 'Ошибка при обработке пароля.' });
+      }
+    });
+  });
+});
+
+// Сброс пароля пользователя администратором
+ipcMain.handle('admin-reset-password', async (_, userId) => {
+  console.log(`Попытка сброса пароля администратором для пользователя ID: ${userId}`);
+  
+  if (!userId) {
+    return { success: false, error: 'Не предоставлен ID пользователя для сброса пароля.' };
+  }
+
+  try {
+    // 1. Получить email пользователя для лога (опционально, но полезно)
+    const userEmailResult = await new Promise((resolve, reject) => {
+        db.get("SELECT email FROM users WHERE id = ?", [userId], (err, user) => {
+            if (err || !user) resolve(null); // Не критично, если не нашли email
+            else resolve(user.email);
+        });
+    });
+    const userEmailForLog = userEmailResult || `ID ${userId}`;
+
+    // 2. Сгенерировать новый случайный пароль
+    const newRandomPassword = crypto.randomBytes(8).toString('hex');
+
+    // 3. Захешировать новый пароль
+    const newHashedPassword = await bcrypt.hash(newRandomPassword, saltRounds);
+
+    // 4. Обновить пароль в базе данных
+    const updateResult = await new Promise((resolve) => {
+        db.run("UPDATE users SET password = ? WHERE id = ?", [newHashedPassword, userId], function(updateErr) {
+          if (updateErr) {
+            console.error(`Ошибка обновления пароля при сбросе для ${userEmailForLog}:`, updateErr.message);
+            resolve({ success: false, error: 'Ошибка сервера при обновлении пароля.' });
+          } else if (this.changes === 0) {
+            console.error(`Не удалось сбросить пароль для ${userEmailForLog} (ID не найден?).`);
+            resolve({ success: false, error: 'Не удалось сбросить пароль (пользователь не найден).' });
+          } else {
+            console.log(`Пароль для пользователя ${userEmailForLog} успешно сброшен.`);
+            // !!! ВЫВОДИМ НОВЫЙ ПАРОЛЬ В КОНСОЛЬ ДЛЯ АДМИНА !!!
+            console.log(`#############################################################`);
+            console.log(`!!! Новый временный пароль для ${userEmailForLog}: ${newRandomPassword} !!!`);
+            console.log(`!!! ПЕРЕДАЙТЕ ЭТОТ ПАРОЛЬ ПОЛЬЗОВАТЕЛЮ БЕЗОПАСНО !!!`);
+            console.log(`#############################################################`);
+            resolve({ success: true, newPassword: newRandomPassword }); 
+          }
+        });
+    });
+    
+    return updateResult;
+
+  } catch (error) {
+    console.error(`Критическая ошибка при сбросе пароля для пользователя ID ${userId}:`, error);
+    return { success: false, error: 'Критическая ошибка сервера при сбросе пароля.' };
+  }
 }); 

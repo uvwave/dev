@@ -5,7 +5,8 @@ contextBridge.exposeInMainWorld('api', {
   // Аутентификация
   auth: {
     login: (credentials) => ipcRenderer.invoke('auth-login', credentials),
-    register: (userData) => ipcRenderer.invoke('auth-register', userData)
+    register: (userData) => ipcRenderer.invoke('auth-register', userData),
+    changePassword: (payload) => ipcRenderer.invoke('change-password', payload)
   },
 
   // Клиенты
@@ -25,7 +26,13 @@ contextBridge.exposeInMainWorld('api', {
   sales: {
     add: (sale) => ipcRenderer.invoke('add-sale', sale),
     getAll: () => ipcRenderer.invoke('get-sales'),
-    getStats: () => ipcRenderer.invoke('get-sales-stats')
+    getStats: () => ipcRenderer.invoke('get-sales-stats'),
+    getUserSales: (userId) => ipcRenderer.invoke('get-user-sales', userId)
+  },
+  
+  // Пользователи (для админских действий)
+  users: {
+    adminResetPassword: (userId) => ipcRenderer.invoke('admin-reset-password', userId)
   },
   
   // Управление окном

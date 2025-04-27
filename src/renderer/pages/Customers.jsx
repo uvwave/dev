@@ -25,7 +25,9 @@ import {
   Fab,
   Grid,
   Card,
-  CardContent
+  CardContent,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -34,7 +36,9 @@ import {
   Delete as DeleteIcon,
   Phone as PhoneIcon,
   Email as EmailIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  Password as PasswordIcon,
+  LockReset as LockResetIcon
 } from '@mui/icons-material';
 import AddCustomerForm from '../components/AddCustomerForm';
 
@@ -49,6 +53,9 @@ const Customers = () => {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [viewMode, setViewMode] = useState('table'); // 'table' или 'cards'
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
 
   // Загрузка данных о клиентах
   useEffect(() => {
@@ -136,6 +143,45 @@ const Customers = () => {
   // Обработка перехода на страницу деталей клиента
   const handleViewCustomer = (customerId) => {
     navigate(`/customers/${customerId}`);
+  };
+
+  // Обработка сброса пароля администратором
+  const handleAdminResetPassword = async (customer) => {
+    if (!customer || !customer.user_id) {
+      setSnackbarMessage('У этого клиента нет связанного аккаунта для сброса пароля.');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    // Можно добавить диалог подтверждения перед сбросом
+    if (!confirm(`Вы уверены, что хотите сбросить пароль для пользователя ${customer.name} (${customer.email})? Новый пароль будет выведен в консоль основного процесса.`)) {
+        return;
+    }
+
+    try {
+      const result = await window.api.users.adminResetPassword(customer.user_id);
+      if (result.success && result.newPassword) {
+        setSnackbarMessage(`Пароль для ${customer.name} сброшен. Новый временный пароль: ${result.newPassword}. Передайте его клиенту!`);
+        setSnackbarSeverity('success');
+      } else {
+        setSnackbarMessage(result.error || 'Не удалось сбросить пароль.');
+        setSnackbarSeverity('error');
+      }
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      setSnackbarMessage('Ошибка при сбросе пароля.');
+      setSnackbarSeverity('error');
+    }
+    setSnackbarOpen(true);
+  };
+
+  // Закрытие Snackbar
+  const handleSnackbarClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false);
   };
 
   // Отображение загрузки
@@ -247,12 +293,24 @@ const Customers = () => {
                     <IconButton 
                       color="primary" 
                       onClick={() => handleViewCustomer(customer.id)}
+                      title="Просмотр/Редактировать"
                     >
                       <EditIcon />
                     </IconButton>
+                    {/* Кнопка сброса пароля */} 
+                    {customer.user_id && ( // Показываем только если есть связанный user_id
+                      <IconButton 
+                        color="secondary" 
+                        onClick={() => handleAdminResetPassword(customer)}
+                        title="Сбросить пароль пользователя"
+                      >
+                        <LockResetIcon /> 
+                      </IconButton>
+                    )}
                     <IconButton 
                       color="error" 
                       onClick={() => handleOpenDeleteDialog(customer)}
+                      title="Удалить клиента"
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -396,6 +454,18 @@ const Customers = () => {
           <Button onClick={handleDeleteCustomer} color="error">Удалить</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar для уведомлений */}
+      <Snackbar 
+        open={snackbarOpen} 
+        autoHideDuration={6000} 
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

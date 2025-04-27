@@ -134,15 +134,25 @@ const CustomerDetails = () => {
     }
   };
 
-  // Форматирование даты
+  // Форматирование даты (применяем изменения как в Sales.jsx)
   const formatDate = (dateString) => {
-    if (!dateString) return 'Не указано';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    if (!dateString || typeof dateString !== 'string') return 'Не указано';
+    try {
+      const parts = dateString.split('-');
+      if (parts.length !== 3) return 'Некорректный формат';
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; 
+      const day = parseInt(parts[2], 10);
+      // Пытаемся создать дату в UTC, но отображаем в локальном времени + смещение
+      const date = new Date(Date.UTC(year, month, day)); 
+      if (isNaN(date.getTime())) return 'Некорректная дата';
+      return date.toLocaleDateString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'Europe/Moscow' // Используем UTC+3
+      });
+    } catch (e) { return 'Ошибка даты'; }
   };
 
   // Получение имени пакета услуг по ID
@@ -211,7 +221,7 @@ const CustomerDetails = () => {
       <Paper elevation={2} sx={{ mb: 3, overflow: 'hidden' }}>
         <Box sx={{ p: 3, bgcolor: 'primary.main', color: 'white' }}>
           <Typography variant="h5" gutterBottom>
-            {customer.firstName} {customer.lastName}
+            {customer.name}
           </Typography>
           <Chip 
             label={customer.status || 'Активный'} 
@@ -260,7 +270,7 @@ const CustomerDetails = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <CalendarTodayIcon sx={{ mr: 1, color: 'text.secondary' }} />
                 <Typography variant="body1">
-                  Дата регистрации: {formatDate(customer.createdAt)}
+                  Дата регистрации: {formatDate(customer.created_at)}
                 </Typography>
               </Box>
               
@@ -323,7 +333,7 @@ const CustomerDetails = () => {
                     </ListItemIcon>
                     <ListItemText 
                       primary={getPackageName(sale.packageId)} 
-                      secondary={`Дата продажи: ${formatDate(sale.date)}`}
+                      secondary={`Дата продажи: ${formatDate(sale.sale_date)}`}
                     />
                   </ListItem>
                 ))}
@@ -364,7 +374,11 @@ const CustomerDetails = () => {
           <AddCustomerForm 
             onSubmit={handleEditCustomer} 
             onCancel={() => setOpenEditDialog(false)} 
-            initialData={customer}
+            initialData={{
+                ...customer,
+                firstName: customer.name?.split(' ')[0] || '',
+                lastName: customer.name?.split(' ').slice(1).join(' ') || ''
+            }}
           />
         </DialogContent>
       </Dialog>
@@ -377,7 +391,7 @@ const CustomerDetails = () => {
         <DialogTitle>Подтверждение удаления</DialogTitle>
         <DialogContent>
           <Typography>
-            Вы действительно хотите удалить клиента {customer.firstName} {customer.lastName}? 
+            Вы действительно хотите удалить клиента {customer.name}?
             Это действие нельзя будет отменить.
           </Typography>
           

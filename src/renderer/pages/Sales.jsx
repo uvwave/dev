@@ -104,12 +104,12 @@ const Sales = () => {
           return 'Некорректная дата';
       }
       
-      // Форматируем с учетом UTC даты
+      // Форматируем с учетом UTC+3 (Москва)
       return date.toLocaleDateString('ru-RU', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
-        timeZone: 'UTC' // Указываем таймзону для согласованности
+        timeZone: 'Europe/Moscow' // <-- Изменено на UTC+3
       });
     } catch (e) {
       console.error("Error formatting date:", dateString, e);

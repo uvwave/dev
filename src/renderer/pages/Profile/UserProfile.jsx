@@ -73,6 +73,26 @@ const validatePhone = (phone) => {
   return phone === '' || phoneRegex.test(phone.trim());
 };
 
+// Форматирование даты (можно вынести в утилиты)
+const formatDate = (dateString) => {
+  if (!dateString || typeof dateString !== 'string') return 'Не указана';
+  try {
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return 'Некорректный формат';
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; 
+    const day = parseInt(parts[2], 10);
+    const date = new Date(Date.UTC(year, month, day));
+    if (isNaN(date.getTime())) return 'Некорректная дата';
+    return date.toLocaleDateString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'Europe/Moscow'
+    });
+  } catch (e) { return 'Ошибка даты'; }
+};
+
 const UserProfile = () => {
   console.log('Рендеринг UserProfile');
   const { currentUser, updateUserData } = useContext(AuthContext);
@@ -96,21 +116,59 @@ const UserProfile = () => {
     email: '',
     phone: ''
   });
+  const [userSales, setUserSales] = useState([]); // <-- State для хранения продаж пользователя
+  const [salesLoading, setSalesLoading] = useState(true); // <-- Отдельный лоадер для продаж
+  const [passwordData, setPasswordData] = useState({ // <-- State для паролей
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordErrors, setPasswordErrors] = useState({}); // <-- State для ошибок пароля
+  const [passwordLoading, setPasswordLoading] = useState(false); // <-- State загрузки смены пароля
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordError, setPasswordError] = useState(null);
 
-  // Загрузка данных пользователя при монтировании компонента
+  // Загрузка данных пользователя и его продаж
   useEffect(() => {
-    console.log('useEffect в UserProfile, currentUser:', currentUser);
-    if (currentUser) {
-      setUserData({
-        name: currentUser.name || '',
-        email: currentUser.email || '',
-        phone: currentUser.phone || '',
-      });
-      setSelectedPackage(currentUser.package || null);
-    }
-    // Даже если currentUser не определен, завершаем загрузку страницы
-    setPageLoading(false);
-  }, [currentUser]);
+    setPageLoading(true);
+    setSalesLoading(true);
+    let mounted = true; // Флаг для предотвращения обновления состояния размонтированного компонента
+
+    const loadData = async () => {
+      if (currentUser) {
+        // Загрузка основной информации пользователя
+        setUserData({
+          name: currentUser.name || '',
+          email: currentUser.email || '',
+          phone: currentUser.phone || '',
+        });
+        
+        // Загрузка продаж пользователя
+        try {
+          const sales = await window.api.sales.getUserSales(currentUser.id); // <-- Вызываем новый API
+          if (mounted) {
+             setUserSales(sales || []);
+          }
+        } catch (salesError) {
+          console.error('Error fetching user sales:', salesError);
+          if (mounted) {
+              setError(prev => prev || 'Не удалось загрузить историю покупок.'); // Показываем ошибку
+          }
+        } finally {
+           if (mounted) setSalesLoading(false);
+        }
+        
+      } else {
+           if (mounted) setSalesLoading(false); // Если пользователя нет, загрузка продаж завершена
+      }
+      if (mounted) setPageLoading(false); // Загрузка основной информации завершена
+    };
+
+    loadData();
+
+    return () => { mounted = false; }; // Очистка при размонтировании
+
+  }, [currentUser]); // Зависим только от currentUser
 
   // Обработка изменения полей формы
   const handleChange = (e) => {
@@ -196,39 +254,67 @@ const UserProfile = () => {
     }
   };
 
+  // Обработка изменения полей пароля
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({ ...prev, [name]: value }));
+    setPasswordErrors(prev => ({ ...prev, [name]: null })); // Сброс ошибки при изменении
+    setPasswordError(null); // Сброс общей ошибки
+    setPasswordSuccess(false);
+  };
+
+  // Валидация формы смены пароля
+  const validatePasswordForm = () => {
+    const errors = {};
+    if (!passwordData.currentPassword) errors.currentPassword = 'Текущий пароль обязателен';
+    if (!passwordData.newPassword) errors.newPassword = 'Новый пароль обязателен';
+    else if (passwordData.newPassword.length < 6) errors.newPassword = 'Пароль должен быть не менее 6 символов';
+    if (passwordData.newPassword !== passwordData.confirmPassword) errors.confirmPassword = 'Пароли не совпадают';
+    
+    setPasswordErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Обработка сохранения нового пароля
+  const handlePasswordSave = async () => {
+    if (!validatePasswordForm()) return;
+    
+    setPasswordLoading(true);
+    setPasswordError(null);
+    setPasswordSuccess(false);
+    
+    try {
+       // Проверяем наличие API перед вызовом
+      if (!window.api || !window.api.auth || !window.api.auth.changePassword) {
+        throw new Error('Функция смены пароля недоступна.');
+      }
+
+      const result = await window.api.auth.changePassword({
+        userId: currentUser.id,
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+      
+      if (result.success) {
+        setPasswordSuccess(true);
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); // Очистить поля
+        setTimeout(() => setPasswordSuccess(false), 4000);
+      } else {
+        setPasswordError(result.error || 'Не удалось изменить пароль');
+      }
+    } catch (err) {
+      console.error("Error changing password:", err);
+      setPasswordError(err.message || 'Произошла ошибка при смене пароля.');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   // Выбор пакета услуг
   const handlePackageSelect = (packageId) => {
     setSelectedPackage(packageId);
     updateUserData({ package: packageId });
   };
-
-  // Доступные пакеты услуг
-  const packages = [
-    {
-      id: 'basic',
-      name: 'Базовый',
-      price: '599 ₽/мес',
-      internet: '15 ГБ',
-      calls: '400 минут',
-      description: 'Базовый пакет для общения и интернет-серфинга'
-    },
-    {
-      id: 'standard',
-      name: 'Стандарт',
-      price: '799 ₽/мес',
-      internet: '30 ГБ',
-      calls: 'Безлимит',
-      description: 'Оптимальное соотношение цены и возможностей для активных пользователей'
-    },
-    {
-      id: 'premium',
-      name: 'Премиум',
-      price: '1499 ₽/мес',
-      internet: 'Безлимит',
-      calls: 'Безлимит',
-      description: 'Полный безлимит и максимальная скорость для требовательных пользователей'
-    }
-  ];
 
   // Если страница загружается, показываем индикатор загрузки
   if (pageLoading) {
@@ -367,20 +453,19 @@ const UserProfile = () => {
               <CardHeader 
                 title="Ваш пакет" 
                 subheader={selectedPackage 
-                  ? packages.find(p => p.id === selectedPackage)?.name 
+                  ? selectedPackage 
                   : 'Не выбран'}
               />
               <CardContent>
                 {selectedPackage ? (
                   <Box>
                     <Chip 
-                      label={packages.find(p => p.id === selectedPackage)?.price} 
+                      label={selectedPackage} 
                       color="primary" 
                       sx={{ mb: 1 }} 
                     />
                     <Typography variant="body2" color="text.secondary" paragraph>
-                      Интернет: {packages.find(p => p.id === selectedPackage)?.internet}<br />
-                      Звонки: {packages.find(p => p.id === selectedPackage)?.calls}
+                      Интернет: {selectedPackage}
                     </Typography>
                   </Box>
                 ) : (
@@ -403,59 +488,101 @@ const UserProfile = () => {
         </Grid>
       </ProfilePaper>
       
-      {/* Выбор пакета услуг */}
-      <ProfilePaper elevation={2}>
-        <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <PackageIcon sx={{ mr: 1 }} />
-          Доступные пакеты услуг
+      {/* Раздел Мои пакеты/Покупки */}
+      <ProfilePaper elevation={3}>
+        <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
+          Мои покупки
         </Typography>
-        
-        <Divider sx={{ mb: 3 }} />
-        
-        <Grid container spacing={3}>
-          {packages.map(pack => (
-            <Grid item xs={12} sm={6} md={4} key={pack.id}>
-              <PackageCard selected={selectedPackage === pack.id} elevation={3}>
-                <CardHeader
-                  title={pack.name}
-                  subheader={pack.price}
+        {salesLoading ? (
+           <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}><CircularProgress /></Box>
+        ) : userSales.length > 0 ? (
+          <List disablePadding>
+            {userSales.map((sale) => (
+              <ListItem key={sale.id} divider>
+                <ListItemIcon>
+                  <PackageIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary={sale.packageName || 'Неизвестный пакет'} 
+                  secondary={`Дата продажи: ${formatDate(sale.sale_date)}`} // <-- Используем formatDate и sale.sale_date
                 />
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Typography gutterBottom variant="body1" component="div">
-                    <strong>Интернет:</strong> {pack.internet}
-                  </Typography>
-                  <Typography gutterBottom variant="body1" component="div">
-                    <strong>Звонки:</strong> {pack.calls}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {pack.description}
-                  </Typography>
-                </CardContent>
-                <CardActions>
-                  <Button 
-                    fullWidth 
-                    variant={selectedPackage === pack.id ? "contained" : "outlined"} 
-                    color="primary"
-                    onClick={() => handlePackageSelect(pack.id)}
-                  >
-                    {selectedPackage === pack.id ? "Выбрано" : "Выбрать"}
-                  </Button>
-                </CardActions>
-              </PackageCard>
-            </Grid>
-          ))}
-        </Grid>
+                <Typography variant="body1" fontWeight="bold" sx={{ ml: 2 }}>
+                   {sale.amount ? `${sale.amount} ₽` : 'Цена не указана'}
+                </Typography>
+              </ListItem>
+            ))}
+          </List>
+        ) : (
+          <Typography color="text.secondary">
+            У вас пока нет приобретенных пакетов.
+          </Typography>
+        )}
       </ProfilePaper>
       
-      {/* Настройки аккаунта */}
+      {/* Настройки аккаунта и Смена пароля */} 
       <ProfilePaper elevation={2}>
         <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
           <SettingsIcon sx={{ mr: 1 }} />
           Настройки аккаунта
         </Typography>
-        
         <Divider sx={{ mb: 3 }} />
+
+        {/* Форма смены пароля */} 
+        <Typography variant="subtitle1" gutterBottom>Сменить пароль</Typography>
+        {passwordSuccess && <Alert severity="success" sx={{ mb: 2 }}>Пароль успешно изменен!</Alert>}
+        {passwordError && <Alert severity="error" sx={{ mb: 2 }}>{passwordError}</Alert>}
+        <Box component="form" noValidate sx={{ mb: 3 }}>
+          <TextField
+            type="password"
+            name="currentPassword"
+            label="Текущий пароль"
+            value={passwordData.currentPassword}
+            onChange={handlePasswordChange}
+            error={!!passwordErrors.currentPassword}
+            helperText={passwordErrors.currentPassword}
+            fullWidth
+            margin="normal"
+            size="small"
+          />
+          <TextField
+            type="password"
+            name="newPassword"
+            label="Новый пароль"
+            value={passwordData.newPassword}
+            onChange={handlePasswordChange}
+            error={!!passwordErrors.newPassword}
+            helperText={passwordErrors.newPassword}
+            fullWidth
+            margin="normal"
+            size="small"
+          />
+          <TextField
+            type="password"
+            name="confirmPassword"
+            label="Подтвердите новый пароль"
+            value={passwordData.confirmPassword}
+            onChange={handlePasswordChange}
+            error={!!passwordErrors.confirmPassword}
+            helperText={passwordErrors.confirmPassword}
+            fullWidth
+            margin="normal"
+            size="small"
+          />
+          <Button
+            variant="contained"
+            onClick={handlePasswordSave}
+            disabled={passwordLoading}
+            startIcon={passwordLoading ? <CircularProgress size={20} color="inherit" /> : null}
+            sx={{ mt: 1 }}
+          >
+            Изменить пароль
+          </Button>
+        </Box>
         
+        <Divider sx={{ my: 3 }} />
+
+        {/* Удаление аккаунта */} 
+        <Typography variant="subtitle1" color="error" gutterBottom>Удаление аккаунта</Typography>
         <Button 
           variant="outlined" 
           color="error"

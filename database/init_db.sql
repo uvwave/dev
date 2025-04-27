@@ -27,7 +27,9 @@ CREATE TABLE customers (
     phone TEXT,
     address TEXT,
     notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    user_id INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 );
 
 -- Создание таблицы пакетов услуг

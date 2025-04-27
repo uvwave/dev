@@ -159,12 +159,19 @@ const NewSale = () => {
   // Форматирование даты
   const formatDate = (dateString) => {
     if (!dateString) return 'Не указана';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    // Простая реализация, можно улучшить как в Sales.jsx при необходимости
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return 'Некорр. дата';
+        return date.toLocaleDateString('ru-RU', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          timeZone: 'Europe/Moscow' // <-- Изменено на UTC+3
+        });
+    } catch (e) {
+        return 'Ошибка даты';
+    }
   };
 
   // Отображение загрузки
