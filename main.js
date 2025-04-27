@@ -1,21 +1,69 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const Store = require('electron-store');
 const sqlite3 = require('sqlite3').verbose();
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+
+const saltRounds = 10;
+const JWT_SECRET = 'your-super-secret-key-change-this!';
 
 // Путь к файлу базы данных
 const dbPath = path.join(__dirname, 't2mobile.db');
+const initSqlPath = path.join(__dirname, 'database', 'init_db.sql');
 
-// Создаем соединение с базой данных
-let db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Ошибка подключения к базе данных:', err.message);
-    // Используем хранилище в памяти как резервный вариант
-    const store = new Store({name: 'mobile-crm-data'});
-    return;
-  }
-  console.log('Подключение к базе данных SQLite установлено');
-});
+// Глобальная переменная для БД
+let db;
+
+// Функция для инициализации базы данных
+function initializeDatabase() {
+  return new Promise((resolve, reject) => {
+    db = new sqlite3.Database(dbPath, (err) => {
+      if (err) {
+        console.error('Ошибка подключения к базе данных:', err.message);
+        // TODO: Handle error more gracefully, maybe fallback to store?
+        reject(err);
+        return;
+      }
+      console.log('Подключение к базе данных SQLite установлено');
+
+      // Проверяем, существует ли таблица users
+      db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='users'", (err, table) => {
+        if (err) {
+          console.error('Ошибка при проверке существования таблицы users:', err.message);
+          reject(err);
+          return;
+        }
+
+        if (!table) {
+          // Таблицы users нет, нужно инициализировать БД из файла
+          console.log('Таблица users не найдена. Инициализация базы данных из init_db.sql...');
+          try {
+            const initSql = fs.readFileSync(initSqlPath, 'utf8');
+            db.exec(initSql, (execErr) => {
+              if (execErr) {
+                console.error('Ошибка при выполнении init_db.sql:', execErr.message);
+                reject(execErr);
+              } else {
+                console.log('База данных успешно инициализирована.');
+                resolve(); // Успешная инициализация
+              }
+            });
+          } catch (readErr) {
+            console.error('Ошибка при чтении init_db.sql:', readErr.message);
+            reject(readErr);
+          }
+        } else {
+          // Таблица существует, инициализация не нужна
+          console.log('Таблица users найдена. Инициализация не требуется.');
+          resolve(); // База данных уже инициализирована
+        }
+      });
+    });
+  });
+}
 
 // Инициализация хранилища данных (используем только если база данных недоступна)
 const store = new Store({name: 'mobile-crm-data'});
@@ -100,13 +148,26 @@ ipcMain.handle('is-window-maximized', () => {
   return false;
 });
 
-// Создаем окно, когда приложение готово
-app.whenReady().then(() => {
-  createWindow();
+// Создаем окно и инициализируем БД, когда приложение готово
+app.whenReady().then(async () => {
+  try {
+    await initializeDatabase();
+    console.log('Инициализация БД завершена, создаем окно...');
+    createWindow();
+  } catch (error) {
+    console.error('!!! Критическая ошибка при инициализации БД, приложение не может запуститься:', error);
+    // Можно показать диалоговое окно об ошибке пользователю
+    // dialog.showErrorBox('Ошибка базы данных', 'Не удалось инициализировать базу данных. Приложение будет закрыто.');
+    app.quit(); // Закрыть приложение, если БД не инициализирована
+    return;
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      // Перепроверить или просто создать окно, т.к. БД уже должна быть инициализирована
+      if (!mainWindow) { 
+        createWindow();
+      }
     }
   });
 });
@@ -146,45 +207,74 @@ ipcMain.handle('get-customers', () => {
   });
 });
 
-// Добавление нового клиента
-ipcMain.handle('add-customer', (_, customer) => {
+// Добавление нового клиента (с исправленной обработкой ошибок и авто-созданием пользователя)
+ipcMain.handle('add-customer', async (_, customerData) => {
+  const { name, email, phone, address, notes } = customerData;
+  console.log('Попытка добавления клиента:', email);
+
   return new Promise((resolve, reject) => {
-    const { name, email, phone, address, notes } = customer;
-    const stmt = db.prepare(`
+    // --- Шаг 1: Добавить клиента в таблицу customers --- 
+    const customerStmt = db.prepare(`
       INSERT INTO customers (name, email, phone, address, notes) 
       VALUES (?, ?, ?, ?, ?)
     `);
-    
-    stmt.run(name, email, phone, address, notes, function(err) {
-      if (err) {
-        console.error('Ошибка при добавлении клиента:', err.message);
-        // Возвращаем данные из хранилища в случае ошибки
-        const customers = store.get('customers');
-        const newCustomer = {
-          id: Date.now(),
-          createdAt: new Date().toISOString(),
-          ...customer
-        };
-        store.set('customers', [...customers, newCustomer]);
-        resolve(newCustomer);
+
+    customerStmt.run(name, email, phone, address, notes, async function(customerErr) {
+      if (customerErr) {
+        console.error('Ошибка при добавлении клиента в customers:', customerErr.message);
+        customerStmt.finalize();
+        reject(new Error('Ошибка при сохранении данных клиента в БД')); 
         return;
       }
       
-      // Получаем id созданного клиента
-      const newCustomer = {
-        id: this.lastID,
-        name,
-        email,
-        phone,
-        address,
-        notes
-      };
-      
-      console.log('Клиент успешно добавлен в базу данных');
-      resolve(newCustomer);
+      const newCustomerId = this.lastID;
+      const createdCustomer = { ...customerData, id: newCustomerId };
+      console.log('Клиент успешно добавлен в customers с ID:', newCustomerId);
+      customerStmt.finalize();
+
+      // --- Шаг 2: Попытаться создать пользователя в таблице users --- 
+      if (!email) {
+        console.warn('Невозможно создать пользователя: email клиента не указан.');
+        resolve(createdCustomer);
+        return;
+      }
+
+      try {
+        // Генерируем случайный пароль (например, 8 байт в hex)
+        const randomPassword = crypto.randomBytes(8).toString('hex');
+        console.log(`!!! Сгенерирован временный пароль для пользователя ${email}: ${randomPassword} !!! ПЕРЕДАЙТЕ ЕГО КЛИЕНТУ !!!`);
+        
+        // Хешируем пароль
+        const hashedPassword = await bcrypt.hash(randomPassword, saltRounds);
+        const userType = 'client';
+
+        const userStmt = db.prepare(`
+          INSERT INTO users (email, password, name, phone, type) 
+          VALUES (?, ?, ?, ?, ?)
+        `);
+
+        userStmt.run(email, hashedPassword, name, phone, userType, function(userErr) {
+          if (userErr) {
+            if (userErr.message.includes('UNIQUE constraint failed')) {
+              console.warn(`Пользователь с email ${email} уже существует в users. Новый аккаунт не создан.`);
+              resolve(createdCustomer);
+            } else {
+              console.error('Ошибка при добавлении пользователя в users:', userErr.message);
+              resolve(createdCustomer);
+            }
+          } else {
+            const newUserId = this.lastID;
+            console.log(`Пользователь для клиента ${email} успешно создан в users с ID: ${newUserId}`);
+            resolve(createdCustomer);
+          }
+          userStmt.finalize();
+        });
+
+      } catch (error) {
+        console.error('Критическая ошибка при создании пользователя (хеширование/подготовка запроса):', error);
+        resolve(createdCustomer);
+      }
     });
-    
-    stmt.finalize();
   });
 });
 
@@ -259,10 +349,19 @@ ipcMain.handle('get-packages', () => {
   });
 });
 
-// Добавление продажи
-ipcMain.handle('add-sale', (_, sale) => {
+// Добавление продажи (с исправленной обработкой ошибок)
+ipcMain.handle('add-sale', (_, saleData) => {
   return new Promise((resolve, reject) => {
-    const { customerId, packageId, amount, sale_date } = sale;
+    // Получаем данные из saleData
+    const { customerId, packageId, amount, sale_date } = saleData;
+    
+    // Проверка наличия обязательных данных
+    if (customerId === undefined || packageId === undefined || amount === undefined) {
+      console.error('Ошибка добавления продажи: Отсутствуют customerId, packageId или amount.', saleData);
+      reject(new Error('Недостаточно данных для добавления продажи (клиент, пакет, сумма).'));
+      return;
+    }
+    
     const currentDate = sale_date || new Date().toISOString().split('T')[0];
     
     const stmt = db.prepare(`
@@ -272,33 +371,30 @@ ipcMain.handle('add-sale', (_, sale) => {
     
     stmt.run(customerId, packageId, amount, currentDate, function(err) {
       if (err) {
-        console.error('Ошибка при добавлении продажи:', err.message);
-        // Возвращаем данные из хранилища в случае ошибки
-        const sales = store.get('sales');
-        const newSale = {
-          id: Date.now(),
-          date: new Date().toISOString(),
-          ...sale
-        };
-        store.set('sales', [...sales, newSale]);
-        resolve(newSale);
+        console.error('Ошибка при добавлении продажи в БД:', err.message);
+        stmt.finalize(); // Финализируем в случае ошибки
+        // Отправляем ошибку на фронтенд
+        reject(new Error('Ошибка при сохранении данных продажи в БД')); 
         return;
       }
       
-      // Получаем id созданной продажи
+      // Успешно добавлено, формируем ответный объект
       const newSale = {
-        id: this.lastID,
-        customerId,
-        packageId,
-        amount,
-        sale_date: currentDate
+        id: this.lastID, // ID созданной записи
+        customerId: customerId,
+        packageId: packageId,
+        amount: amount,
+        sale_date: currentDate,
+        // Можно добавить customerName и packageName, если они нужны фронту сразу
+        // Но лучше получать их через get-sales
       };
       
-      console.log('Продажа успешно добавлена в базу данных');
-      resolve(newSale);
+      console.log('Продажа успешно добавлена в базу данных с ID:', newSale.id);
+      stmt.finalize(); // Финализируем после успешного выполнения
+      resolve(newSale); // Отправляем созданную продажу на фронтенд
     });
     
-    stmt.finalize();
+    // stmt.finalize(); // Убрано отсюда, т.к. finalize вызывается внутри callback
   });
 });
 
@@ -466,40 +562,167 @@ function getMockStats() {
 
 // Добавляем обработчик для аутентификации пользователя
 ipcMain.handle('auth-login', async (_, credentials) => {
-  const { email, password } = credentials;
-  console.log('Попытка входа пользователя:', email);
-  
+  console.log("--- auth-login handler started ---");
+  try {
+    const { email, password } = credentials;
+    console.log('Попытка входа пользователя:', email);
+
+    return new Promise((resolve, reject) => {
+      // Select password hash along with other user data
+      const query = `
+        SELECT id, email, name, type, phone, avatar, password 
+        FROM users 
+        WHERE email = ?
+      `; 
+
+      db.get(query, [email], async (err, user) => {
+        console.log("--- db.get callback started ---");
+        if (err) {
+          console.error('Ошибка при поиске пользователя:', err.message);
+          resolve({ success: false, error: 'Ошибка сервера при входе' });
+          return;
+        }
+
+        if (user) {
+          console.log('User found in DB:', user.email);
+          // Compare provided password with the stored hash
+          const match = await bcrypt.compare(password, user.password);
+          if (match) {
+            console.log('Пароль совпадает для пользователя:', email);
+            // Password matches - Generate JWT
+            const userPayload = {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              type: user.type,
+              // Add other non-sensitive fields if needed
+            };
+            const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '1h' }); // Token expires in 1 hour
+
+            console.log('Пользователь успешно аутентифицирован:', user.email);
+            resolve({
+              success: true,
+              user: { // Return user data (excluding password hash)
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                type: user.type,
+                phone: user.phone,
+                avatar: user.avatar
+              },
+              token: token // Return the JWT token
+            });
+          } else {
+            console.log('Неверный пароль для пользователя:', email);
+            resolve({ success: false, error: 'Неверный email или пароль' });
+          }
+        } else {
+          console.log('Пользователь не найден:', email);
+          resolve({ success: false, error: 'Неверный email или пароль' });
+        }
+      });
+    });
+  } catch (error) {
+    console.error('!!! Critical error in auth-login handler:', error);
+    // Return a generic error response
+    return { success: false, error: 'Критическая ошибка на сервере при входе' };
+  }
+});
+
+// Добавляем обработчик для регистрации нового пользователя
+ipcMain.handle('auth-register', async (_, userData) => {
+  const { email, password, firstName, lastName, phone } = userData;
+  console.log('Попытка регистрации пользователя:', email);
+
+  // --- 2. Phone Number Formatting ---
+  let formattedPhone = phone;
+  if (phone) {
+    // Remove non-digit characters except potential leading +
+    const digits = phone.replace(/\D/g, '');
+    // Check if it looks like a Russian number (10 digits after 7/8)
+    if (digits.length === 11 && (digits.startsWith('7') || digits.startsWith('8'))) {
+        const nationalPart = digits.substring(1); // Get 10 digits after 7/8
+        const operatorCode = nationalPart.substring(0, 3);
+        const part1 = nationalPart.substring(3, 6);
+        const part2 = nationalPart.substring(6, 8);
+        const part3 = nationalPart.substring(8, 10);
+        formattedPhone = `+7 (${operatorCode}) ${part1}-${part2}-${part3}`;
+    } else if (digits.length === 10) { 
+        // Assume 10 digits are the national part
+        const operatorCode = digits.substring(0, 3);
+        const part1 = digits.substring(3, 6);
+        const part2 = digits.substring(6, 8);
+        const part3 = digits.substring(8, 10);
+        formattedPhone = `+7 (${operatorCode}) ${part1}-${part2}-${part3}`;
+    }
+    // Add more validation/formatting rules if needed
+  }
+  console.log('Formatted phone:', formattedPhone);
+
+  // --- 3. Password Hashing ---
+  let hashedPassword;
+  try {
+    hashedPassword = await bcrypt.hash(password, saltRounds);
+  } catch (hashError) {
+    console.error('Ошибка при хешировании пароля:', hashError);
+    return { success: false, error: 'Ошибка при регистрации (хеширование)' };
+  }
+
+  const fullName = `${firstName || ''} ${lastName || ''}`.trim();
+  const userType = 'client'; // Default type for registration
+
   return new Promise((resolve, reject) => {
-    const query = `
-      SELECT id, email, name, type, phone, avatar 
-      FROM users 
-      WHERE email = ? AND password = ?
-    `;
-    
-    db.get(query, [email, password], (err, user) => {
+    // --- 1. Save to Database (with hashed password and formatted phone) ---
+    const stmt = db.prepare(`
+      INSERT INTO users (email, password, name, phone, type) 
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(email, hashedPassword, fullName, formattedPhone, userType, function(err) {
       if (err) {
-        console.error('Ошибка при проверке учетных данных:', err.message);
-        resolve({ success: false, error: 'Ошибка проверки учетных данных' });
+        console.error('Ошибка при добавлении пользователя в БД:', err.message);
+        // Check for unique constraint error (e.g., email already exists)
+        if (err.message.includes('UNIQUE constraint failed')) {
+          resolve({ success: false, error: 'Пользователь с таким email уже существует' });
+        } else {
+          resolve({ success: false, error: 'Ошибка при сохранении пользователя в БД' });
+        }
         return;
       }
-      
-      if (user) {
-        console.log('Пользователь успешно аутентифицирован:', user);
-        resolve({ 
-          success: true, 
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            type: user.type,
-            phone: user.phone,
-            avatar: user.avatar
-          } 
-        });
-      } else {
-        console.log('Неверные учетные данные для пользователя:', email);
-        resolve({ success: false, error: 'Неверный email или пароль' });
-      }
+
+      const newUserId = this.lastID;
+      console.log('Пользователь успешно добавлен в БД с ID:', newUserId);
+
+      // --- 4. Generate JWT Token ---
+       const userPayload = {
+         id: newUserId,
+         email: email,
+         name: fullName,
+         type: userType
+       };
+      const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '1h' }); // Token expires in 1 hour
+
+      resolve({
+        success: true,
+        user: { // Return newly created user data (excluding password)
+          id: newUserId,
+          email: email,
+          name: fullName,
+          phone: formattedPhone,
+          type: userType,
+          avatar: null // Assuming new users don't have an avatar initially
+        },
+        token: token // Return the JWT token
+      });
+    });
+
+    stmt.finalize((finalizeErr) => {
+        if (finalizeErr) {
+            console.error('Error finalizing statement during registration:', finalizeErr.message);
+            // If the promise hasn't been resolved yet (e.g., due to an error before stmt.run callback)
+            // resolve with an error here. Otherwise, the success/error is handled in stmt.run callback.
+            // This is a safety net, might need refinement based on specific error handling strategy.
+        }
     });
   });
 }); 

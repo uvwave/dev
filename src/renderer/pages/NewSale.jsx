@@ -77,8 +77,7 @@ const NewSale = () => {
   const filteredCustomers = customers.filter(customer => {
     const query = searchQuery.toLowerCase();
     return (
-      customer.firstName?.toLowerCase().includes(query) ||
-      customer.lastName?.toLowerCase().includes(query) ||
+      customer.name?.toLowerCase().includes(query) ||
       customer.phone?.includes(query) ||
       customer.email?.toLowerCase().includes(query)
     );
@@ -112,20 +111,25 @@ const NewSale = () => {
       setFormSubmitting(true);
       const saleData = {
         customerId: selectedCustomer.id,
-        packageId: selectedPackage.id
+        packageId: selectedPackage.id,
+        amount: selectedPackage.price
       };
 
-      await window.api.sales.add(saleData);
-      setSuccessMessage('Продажа успешно создана!');
-      setFormSubmitting(false);
+      const result = await window.api.sales.add(saleData);
       
-      // Даем пользователю время увидеть сообщение об успехе
-      setTimeout(() => {
-        navigate('/sales');
-      }, 1500);
+      if (result && result.id) {
+        setSuccessMessage('Продажа успешно создана!');
+        setFormSubmitting(false);
+        setTimeout(() => {
+          navigate('/sales');
+        }, 1500);
+      } else {
+        throw new Error(result?.error || 'Не удалось создать продажу. Ответ от сервера некорректен.');
+      }
+
     } catch (error) {
       console.error('Error creating sale:', error);
-      setError('Ошибка при создании продажи. Пожалуйста, попробуйте снова.');
+      setError(error.message || 'Ошибка при создании продажи. Пожалуйста, попробуйте снова.');
       setFormSubmitting(false);
     }
   };
@@ -239,7 +243,7 @@ const NewSale = () => {
                           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                             <PersonIcon sx={{ color: 'primary.main', mr: 1 }} />
                             <Typography variant="h6">
-                              {customer.firstName} {customer.lastName}
+                              {customer.name}
                             </Typography>
                           </Box>
                           <Divider sx={{ mb: 2 }} />
@@ -250,7 +254,7 @@ const NewSale = () => {
                             Email: {customer.email || 'Не указан'}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            Дата регистрации: {formatDate(customer.createdAt)}
+                            Дата регистрации: {formatDate(customer.created_at)}
                           </Typography>
                         </CardContent>
                       </CardActionArea>
@@ -272,7 +276,7 @@ const NewSale = () => {
         <Box sx={{ mb: 3 }}>
           <Typography variant="h6">Выберите пакет услуг</Typography>
           <Typography variant="body2" color="text.secondary">
-            Клиент: {selectedCustomer?.firstName} {selectedCustomer?.lastName}
+            Клиент: {selectedCustomer?.name}
           </Typography>
         </Box>
         
@@ -378,7 +382,7 @@ const NewSale = () => {
               </Box>
               <Divider sx={{ mb: 2 }} />
               <Typography variant="body1" gutterBottom>
-                ФИО: {selectedCustomer?.firstName} {selectedCustomer?.lastName}
+                ФИО: {selectedCustomer?.name}
               </Typography>
               <Typography variant="body1" gutterBottom>
                 Телефон: {selectedCustomer?.phone || 'Не указан'}

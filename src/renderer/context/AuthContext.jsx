@@ -150,27 +150,39 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Функция регистрации пользователя
-  const register = (userData) => {
+  const register = async (userData) => {
     try {
-      console.log('Регистрация пользователя:', userData);
+      console.log('Регистрация пользователя через API:', userData);
+
+      // Проверка наличия API
+      if (!window.api || !window.api.auth || !window.api.auth.register) {
+        console.error('API регистрации недоступно');
+        // Можно оставить резервный вариант или просто вернуть ошибку
+        return { success: false, error: 'API регистрации недоступно' }; 
+      }
+
+      // Вызов API основного процесса для регистрации
+      const result = await window.api.auth.register(userData);
+
+      if (result.success) {
+        console.log('Успешная регистрация через API:', result.user);
+        setCurrentUser(result.user); // result.user should contain the user data
+        setIsAuthenticated(true);
+        // Optionally store JWT token if returned in result.token
+        if (result.token) {
+           localStorage.setItem('authToken', result.token); // Store token separately
+        }
+        // Store user data WITHOUT sensitive info like password hash if needed
+        localStorage.setItem('currentUser', JSON.stringify(result.user)); 
+      } else {
+        console.log('Неудачная попытка регистрации через API:', result.error);
+        setError(result.error || 'Неизвестная ошибка регистрации'); // Set error state
+      }
       
-      // Имитация регистрации клиента
-      const newUser = {
-        id: `client${Date.now()}`,
-        email: userData.email,
-        name: `${userData.firstName} ${userData.lastName}`,
-        type: USER_TYPES.CLIENT,
-        package: null,
-        phone: userData.phone
-      };
-      
-      console.log('Новый пользователь создан:', newUser);
-      setCurrentUser(newUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('currentUser', JSON.stringify(newUser));
-      return { success: true, user: newUser };
+      return result; // Return the result from the API call
     } catch (err) {
       console.error('Ошибка при регистрации:', err);
+      setError('Произошла ошибка при регистрации: ' + err.message); // Set error state
       return { success: false, error: 'Произошла ошибка при регистрации: ' + err.message };
     }
   };

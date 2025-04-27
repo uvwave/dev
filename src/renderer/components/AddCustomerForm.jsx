@@ -74,7 +74,16 @@ const AddCustomerForm = ({ onSubmit, onCancel, initialData }) => {
     e.preventDefault();
     
     if (validateForm()) {
-      onSubmit(formData);
+      // Создаем новый объект для отправки, объединяя имя и фамилию
+      const customerDataToSend = {
+        ...formData,
+        name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim() // Объединяем имя
+      };
+      // Удаляем ненужные поля firstName и lastName перед отправкой
+      delete customerDataToSend.firstName;
+      delete customerDataToSend.lastName;
+      
+      onSubmit(customerDataToSend); // <-- Отправляем модифицированный объект
     }
   };
   

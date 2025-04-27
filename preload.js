@@ -4,7 +4,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('api', {
   // Аутентификация
   auth: {
-    login: (credentials) => ipcRenderer.invoke('auth-login', credentials)
+    login: (credentials) => ipcRenderer.invoke('auth-login', credentials),
+    register: (userData) => ipcRenderer.invoke('auth-register', userData)
   },
 
   // Клиенты

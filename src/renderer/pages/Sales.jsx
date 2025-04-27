@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -34,8 +34,8 @@ import {
 
 const Sales = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [sales, setSales] = useState([]);
-  const [customers, setCustomers] = useState([]);
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,17 +45,15 @@ const Sales = () => {
 
   // Загрузка данных
   useEffect(() => {
+    console.log('Sales component fetching data because location changed...');
+    setLoading(true);
     const fetchData = async () => {
       try {
-        // Получение продаж
+        // Получение продаж (уже содержит customerName и packageName)
         const salesData = await window.api.sales.getAll();
         setSales(salesData);
 
-        // Получение клиентов
-        const customersData = await window.api.customers.getAll();
-        setCustomers(customersData);
-
-        // Получение пакетов услуг
+        // Получение пакетов услуг (может быть нужно для цены?)
         const packagesData = await window.api.packages.getAll();
         setPackages(packagesData);
 
@@ -67,7 +65,7 @@ const Sales = () => {
     };
 
     fetchData();
-  }, []);
+  }, [location]);
 
   // Обработка пагинации
   const handleChangePage = (event, newPage) => {
@@ -79,39 +77,55 @@ const Sales = () => {
     setPage(0);
   };
 
-  // Получение имени клиента по ID
-  const getCustomerName = (customerId) => {
-    const customer = customers.find(c => c.id === customerId);
-    return customer ? `${customer.firstName} ${customer.lastName}` : 'Неизвестный клиент';
-  };
-
-  // Получение данных пакета по ID
+  // Получение данных пакета по ID (оставляем, может нужно для отображения)
   const getPackage = (packageId) => {
     return packages.find(p => p.id === packageId) || { name: 'Неизвестный пакет', price: 0 };
   };
 
   // Форматирование даты
   const formatDate = (dateString) => {
-    if (!dateString) return 'Не указана';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    console.log("Formatting date string:", dateString);
+    if (!dateString || typeof dateString !== 'string') return 'Не указана';
+    
+    try {
+      // Явно разбираем YYYY-MM-DD, чтобы избежать проблем с локалями new Date()
+      const parts = dateString.split('-');
+      if (parts.length !== 3) return 'Некорректный формат';
+      
+      // ВАЖНО: Месяцы в new Date() начинаются с 0 (0 = Январь, 11 = Декабрь)
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // Вычитаем 1 из месяца
+      const day = parseInt(parts[2], 10);
+      
+      const date = new Date(Date.UTC(year, month, day)); // Используем UTC для надежности
+
+      if (isNaN(date.getTime())) {
+          console.warn("Parsed date is invalid:", dateString);
+          return 'Некорректная дата';
+      }
+      
+      // Форматируем с учетом UTC даты
+      return date.toLocaleDateString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'UTC' // Указываем таймзону для согласованности
+      });
+    } catch (e) {
+      console.error("Error formatting date:", dateString, e);
+      return 'Ошибка даты';
+    }
   };
 
   // Фильтрация продаж по поисковому запросу
   const filteredSales = sales.filter(sale => {
     const query = searchQuery.toLowerCase();
-    const customer = customers.find(c => c.id === sale.customerId);
     const packageData = packages.find(p => p.id === sale.packageId);
     
     return (
-      customer?.firstName?.toLowerCase().includes(query) ||
-      customer?.lastName?.toLowerCase().includes(query) ||
+      sale.customerName?.toLowerCase().includes(query) ||
       packageData?.name?.toLowerCase().includes(query) ||
-      formatDate(sale.date).includes(query)
+      formatDate(sale.sale_date).includes(query)
     );
   });
 
@@ -163,14 +177,14 @@ const Sales = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <PersonIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
                       <Typography variant="body2" color="text.secondary">
-                        {getCustomerName(sale.customerId)}
+                        {sale.customerName || 'Неизвестный клиент'}
                       </Typography>
                     </Box>
                     
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <DateRangeIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
                       <Typography variant="body2" color="text.secondary">
-                        {formatDate(sale.date)}
+                        {formatDate(sale.sale_date)}
                       </Typography>
                     </Box>
                     
@@ -221,8 +235,8 @@ const Sales = () => {
                     <TableCell component="th" scope="row">
                       {sale.id}
                     </TableCell>
-                    <TableCell>{formatDate(sale.date)}</TableCell>
-                    <TableCell>{getCustomerName(sale.customerId)}</TableCell>
+                    <TableCell>{formatDate(sale.sale_date)}</TableCell>
+                    <TableCell>{sale.customerName || 'Неизвестный клиент'}</TableCell>
                     <TableCell>
                       <Chip 
                         label={pkg.name} 
@@ -411,16 +425,6 @@ const Sales = () => {
           />
         </>
       )}
-
-      {/* Плавающая кнопка добавления */}
-      <Fab 
-        color="primary" 
-        aria-label="add" 
-        sx={{ position: 'fixed', bottom: 20, right: 20 }}
-        onClick={() => navigate('/sales/new')}
-      >
-        <AddIcon />
-      </Fab>
     </Box>
   );
 };

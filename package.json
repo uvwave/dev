@@ -7,7 +7,8 @@
     "start": "electron .",
     "dev": "webpack --mode development && electron .",
     "build": "webpack --mode production && electron-builder",
-    "watch": "webpack --mode development --watch"
+    "watch": "webpack --mode development --watch",
+    "rebuild": "electron-rebuild -f -w sqlite3"
   },
   "keywords": [
     "electron",
@@ -25,23 +26,27 @@
     "css-loader": "^6.10.0",
     "electron": "^29.1.0",
     "electron-builder": "^24.13.1",
+    "electron-rebuild": "^3.2.9",
     "html-webpack-plugin": "^5.6.0",
     "style-loader": "^3.3.4",
     "webpack": "^5.90.3",
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@emotion/react": "^11.11.3",
-    "@emotion/styled": "^11.11.0",
-    "@mui/icons-material": "^5.15.10",
-    "@mui/material": "^5.15.10",
-    "chart.js": "^4.4.1",
+    "@emotion/react": "^11.11.4",
+    "@emotion/styled": "^11.11.5",
+    "@mui/icons-material": "^5.15.18",
+    "@mui/material": "^5.15.18",
+    "@mui/x-charts": "^7.5.1",
+    "chart.js": "^4.4.3",
     "electron-store": "^8.1.0",
-    "react": "^18.2.0",
+    "react": "^18.3.1",
     "react-chartjs-2": "^5.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.22.1",
-    "sqlite3": "^5.1.7"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.23.1",
+    "sqlite3": "^5.1.7",
+    "bcrypt": "^5.1.1",
+    "jsonwebtoken": "^9.0.2"
   },
   "build": {
     "appId": "com.mobilecrm.app",

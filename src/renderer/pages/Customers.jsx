@@ -105,8 +105,7 @@ const Customers = () => {
   const filteredCustomers = customers.filter(customer => {
     const query = searchQuery.toLowerCase();
     return (
-      customer.firstName?.toLowerCase().includes(query) ||
-      customer.lastName?.toLowerCase().includes(query) ||
+      customer.name?.toLowerCase().includes(query) ||
       customer.phone?.includes(query) ||
       customer.email?.toLowerCase().includes(query)
     );
@@ -168,7 +167,7 @@ const Customers = () => {
               >
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    {customer.firstName} {customer.lastName}
+                    {customer.name}
                   </Typography>
                   
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -233,7 +232,7 @@ const Customers = () => {
                   sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
                 >
                   <TableCell component="th" scope="row">
-                    {customer.firstName} {customer.lastName}
+                    {customer.name}
                   </TableCell>
                   <TableCell>{customer.phone || 'Не указан'}</TableCell>
                   <TableCell>{customer.email || 'Не указан'}</TableCell>
@@ -367,16 +366,6 @@ const Customers = () => {
         </>
       )}
 
-      {/* Плавающая кнопка добавления */}
-      <Fab 
-        color="primary" 
-        aria-label="add" 
-        sx={{ position: 'fixed', bottom: 20, right: 20 }}
-        onClick={handleOpenAddDialog}
-      >
-        <AddIcon />
-      </Fab>
-
       {/* Диалог добавления клиента */}
       <Dialog 
         open={openAddDialog} 
@@ -398,7 +387,7 @@ const Customers = () => {
         <DialogTitle>Подтверждение удаления</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Вы действительно хотите удалить клиента {selectedCustomer?.firstName} {selectedCustomer?.lastName}? 
+            Вы действительно хотите удалить клиента {selectedCustomer?.name}? 
             Это действие невозможно отменить.
           </DialogContentText>
         </DialogContent>

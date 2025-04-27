@@ -54,14 +54,15 @@ CREATE TABLE sales (
 -- Добавление тестовых данных
 
 -- Пользователи (1 администратор и 2 клиента)
-INSERT INTO users (email, password, name, type, phone, avatar) 
-VALUES ('admin@t2mobile.ru', 'admin123', 'Администратор', 'admin', '+7 (999) 111-22-33', NULL);
-
-INSERT INTO users (email, password, name, type, phone, avatar) 
-VALUES ('client1@example.com', 'client123', 'Иванов Иван', 'client', '+7 (999) 333-44-55', NULL);
-
-INSERT INTO users (email, password, name, type, phone, avatar) 
-VALUES ('client2@example.com', 'client456', 'Петров Петр', 'client', '+7 (999) 666-77-88', NULL);
+-- УДАЛЕНО: Тестовые пользователи теперь должны регистрироваться через приложение
+-- INSERT INTO users (email, password, name, type, phone, avatar) 
+-- VALUES ('admin@t2mobile.ru', 'admin123', 'Администратор', 'admin', '+7 (999) 111-22-33', NULL);
+-- 
+-- INSERT INTO users (email, password, name, type, phone, avatar) 
+-- VALUES ('client1@example.com', 'client123', 'Иванов Иван', 'client', '+7 (999) 333-44-55', NULL);
+-- 
+-- INSERT INTO users (email, password, name, type, phone, avatar) 
+-- VALUES ('client2@example.com', 'client456', 'Петров Петр', 'client', '+7 (999) 666-77-88', NULL);
 
 -- Пакеты услуг
 INSERT INTO packages (name, description, price) 
