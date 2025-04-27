@@ -32,7 +32,8 @@ contextBridge.exposeInMainWorld('api', {
   
   // Пользователи (для админских действий)
   users: {
-    adminResetPassword: (userId) => ipcRenderer.invoke('admin-reset-password', userId)
+    adminResetPassword: (userId) => ipcRenderer.invoke('admin-reset-password', userId),
+    deleteUserAccount: (userId) => ipcRenderer.invoke('delete-user-account', userId)
   },
   
   // Управление окном

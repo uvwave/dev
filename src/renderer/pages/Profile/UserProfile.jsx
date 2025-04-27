@@ -1,4 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -94,8 +95,8 @@ const formatDate = (dateString) => {
 };
 
 const UserProfile = () => {
-  console.log('Рендеринг UserProfile');
-  const { currentUser, updateUserData } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const { currentUser, updateUserData, logout } = useContext(AuthContext);
   console.log('currentUser:', currentUser);
   
   // Состояния
@@ -105,7 +106,6 @@ const UserProfile = () => {
     email: '',
     phone: '',
   });
-  const [selectedPackage, setSelectedPackage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
@@ -127,14 +127,21 @@ const UserProfile = () => {
   const [passwordLoading, setPasswordLoading] = useState(false); // <-- State загрузки смены пароля
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState(null);
+  const [allPackages, setAllPackages] = useState([]); // <-- State для всех пакетов
+  const [latestPackageDetails, setLatestPackageDetails] = useState(null); // <-- State для деталей последнего пакета
+  const [deleteLoading, setDeleteLoading] = useState(false); // <-- Состояние загрузки удаления
+  const [deleteError, setDeleteError] = useState(null); // <-- Состояние ошибки удаления
 
-  // Загрузка данных пользователя и его продаж
+  // Загрузка данных пользователя, его продаж и всех пакетов
   useEffect(() => {
     setPageLoading(true);
     setSalesLoading(true);
-    let mounted = true; // Флаг для предотвращения обновления состояния размонтированного компонента
+    let mounted = true;
 
     const loadData = async () => {
+      let loadedSales = [];
+      let loadedPackages = [];
+
       if (currentUser) {
         // Загрузка основной информации пользователя
         setUserData({
@@ -143,32 +150,51 @@ const UserProfile = () => {
           phone: currentUser.phone || '',
         });
         
-        // Загрузка продаж пользователя
+        // Параллельная загрузка продаж и пакетов
         try {
-          const sales = await window.api.sales.getUserSales(currentUser.id); // <-- Вызываем новый API
+          const [sales, packagesData] = await Promise.all([
+            window.api.sales.getUserSales(currentUser.id), // Загружаем продажи юзера
+            window.api.packages.getAll() // Загружаем все пакеты
+          ]);
+          
           if (mounted) {
-             setUserSales(sales || []);
+             loadedSales = sales || [];
+             loadedPackages = packagesData || [];
+             setUserSales(loadedSales);
+             setAllPackages(loadedPackages);
           }
-        } catch (salesError) {
-          console.error('Error fetching user sales:', salesError);
+        } catch (loadError) {
+          console.error('Error fetching user sales or packages:', loadError);
           if (mounted) {
-              setError(prev => prev || 'Не удалось загрузить историю покупок.'); // Показываем ошибку
+              setError(prev => prev || 'Не удалось загрузить данные о покупках или пакетах.');
           }
         } finally {
            if (mounted) setSalesLoading(false);
         }
         
       } else {
-           if (mounted) setSalesLoading(false); // Если пользователя нет, загрузка продаж завершена
+           if (mounted) setSalesLoading(false);
       }
-      if (mounted) setPageLoading(false); // Загрузка основной информации завершена
+      if (mounted) setPageLoading(false);
+      
+      // --- Определяем последний пакет после загрузки --- 
+      if (mounted && loadedSales.length > 0 && loadedPackages.length > 0) {
+          // Сортируем продажи по ID или дате в порядке убывания (предполагаем, что больший ID = новее)
+          const sortedSales = [...loadedSales].sort((a, b) => b.id - a.id); // Или по sale_date, если он надежнее
+          const latestSale = sortedSales[0];
+          const latestPkg = loadedPackages.find(p => p.id === latestSale.packageId);
+          setLatestPackageDetails(latestPkg || null); // Сохраняем детали последнего пакета
+      } else if (mounted) {
+          setLatestPackageDetails(null); // Если продаж нет
+      }
+      // --- Конец определения последнего пакета --- 
     };
 
     loadData();
 
-    return () => { mounted = false; }; // Очистка при размонтировании
+    return () => { mounted = false; };
 
-  }, [currentUser]); // Зависим только от currentUser
+  }, [currentUser]);
 
   // Обработка изменения полей формы
   const handleChange = (e) => {
@@ -310,10 +336,46 @@ const UserProfile = () => {
     }
   };
 
-  // Выбор пакета услуг
-  const handlePackageSelect = (packageId) => {
-    setSelectedPackage(packageId);
-    updateUserData({ package: packageId });
+  // Обработка подтверждения удаления аккаунта
+  const handleDeleteAccountConfirm = async () => {
+    if (!currentUser || !currentUser.id) {
+      setDeleteError('Не удалось определить пользователя для удаления.');
+      return;
+    }
+    
+    setDeleteLoading(true);
+    setDeleteError(null);
+    
+    try {
+      // Проверяем наличие API
+      if (!window.api || !window.api.users || !window.api.users.deleteUserAccount) {
+         throw new Error('Функция удаления аккаунта недоступна.');
+      }
+      
+      const result = await window.api.users.deleteUserAccount(currentUser.id);
+      
+      if (result.success) {
+        console.log('Аккаунт успешно удален.');
+        setOpenDialog(false); // Закрыть диалог
+        // Выполнить выход и перенаправление
+        if (logout) {
+          logout(); // Вызываем logout из контекста
+        }
+        // Можно добавить короткое сообщение перед редиректом
+        // alert('Ваш аккаунт был успешно удален.'); 
+        navigate('/auth/login', { replace: true }); // Перенаправляем на логин
+      } else {
+        console.error('Ошибка удаления аккаунта:', result.error);
+        setDeleteError(result.error || 'Не удалось удалить аккаунт.');
+      }
+    } catch (err) {
+      console.error('Критическая ошибка при удалении аккаунта:', err);
+      setDeleteError(err.message || 'Произошла критическая ошибка.');
+    } finally {
+      setDeleteLoading(false);
+      // Не закрываем диалог при ошибке, чтобы пользователь видел сообщение
+      // setOpenDialog(false); 
+    }
   };
 
   // Если страница загружается, показываем индикатор загрузки
@@ -451,26 +513,26 @@ const UserProfile = () => {
           <Grid item xs={12} md={6}>
             <Card variant="outlined">
               <CardHeader 
-                title="Ваш пакет" 
-                subheader={selectedPackage 
-                  ? selectedPackage 
+                title="Ваш текущий пакет"
+                subheader={latestPackageDetails 
+                  ? latestPackageDetails.name
                   : 'Не выбран'}
               />
               <CardContent>
-                {selectedPackage ? (
+                {latestPackageDetails ? (
                   <Box>
                     <Chip 
-                      label={selectedPackage} 
+                      label={`${latestPackageDetails.price} ₽`} 
                       color="primary" 
                       sx={{ mb: 1 }} 
                     />
                     <Typography variant="body2" color="text.secondary" paragraph>
-                      Интернет: {selectedPackage}
+                      {latestPackageDetails.description || 'Описание отсутствует'}
                     </Typography>
                   </Box>
                 ) : (
                   <Typography variant="body2" color="text.secondary">
-                    Выберите пакет услуг из списка ниже
+                    У вас нет активного пакета. Приобретите его в разделе "Мои покупки".
                   </Typography>
                 )}
               </CardContent>
@@ -478,9 +540,9 @@ const UserProfile = () => {
                 <Button 
                   size="small" 
                   color="primary"
-                  onClick={() => window.scrollTo(0, document.body.scrollHeight)}
+                  onClick={() => navigate('/select-package')}
                 >
-                  Изменить пакет
+                  {latestPackageDetails ? 'Изменить пакет' : 'Купить пакет'}
                 </Button>
               </CardActions>
             </Card>
@@ -595,7 +657,12 @@ const UserProfile = () => {
       {/* Диалог подтверждения удаления аккаунта */}
       <Dialog
         open={openDialog}
-        onClose={() => setOpenDialog(false)}
+        onClose={() => {
+            if (!deleteLoading) { // Не закрывать во время удаления
+                setOpenDialog(false);
+                setDeleteError(null); // Сброс ошибки при закрытии
+            }
+        }}
       >
         <DialogTitle>Подтверждение удаления</DialogTitle>
         <DialogContent>
@@ -603,10 +670,28 @@ const UserProfile = () => {
             Вы уверены, что хотите удалить свой аккаунт? Это действие нельзя будет отменить.
             Все ваши данные будут безвозвратно удалены из системы.
           </DialogContentText>
+          {/* Показываем ошибку удаления, если она есть */} 
+          {deleteError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {deleteError}
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Отмена</Button>
-          <Button color="error">Удалить</Button>
+          <Button 
+             onClick={() => setOpenDialog(false)} 
+             disabled={deleteLoading} // Блокируем кнопку отмены во время загрузки
+          >
+             Отмена
+          </Button>
+          <Button 
+             color="error" 
+             onClick={handleDeleteAccountConfirm} // <-- Назначаем новый обработчик
+             disabled={deleteLoading} // <-- Блокируем кнопку во время загрузки
+             startIcon={deleteLoading ? <CircularProgress size={20} color="inherit" /> : null}
+          >
+            Удалить
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

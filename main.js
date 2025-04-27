@@ -577,9 +577,9 @@ ipcMain.handle('auth-login', async (_, credentials) => {
     console.log('Попытка входа пользователя:', email);
 
     return new Promise((resolve, reject) => {
-      // Select password hash along with other user data
+      // Убираем avatar из SELECT
       const query = `
-        SELECT id, email, name, type, phone, avatar, password 
+        SELECT id, email, name, type, phone, password 
         FROM users 
         WHERE email = ?
       `; 
@@ -594,9 +594,29 @@ ipcMain.handle('auth-login', async (_, credentials) => {
 
         if (user) {
           console.log('User found in DB:', user.email);
-          // Compare provided password with the stored hash
-          const match = await bcrypt.compare(password, user.password);
-          if (match) {
+          
+          // --- ВРЕМЕННАЯ ПРОВЕРКА: Хеш или текстовый пароль? ---
+          let passwordMatch = false;
+          const storedPassword = user.password;
+          
+          if (storedPassword && (storedPassword.startsWith('$2a$') || storedPassword.startsWith('$2b$') || storedPassword.startsWith('$2y$'))) {
+            // Похоже на хеш, используем bcrypt
+            console.log('Обнаружен хеш пароля, используем bcrypt.compare');
+            try {
+                passwordMatch = await bcrypt.compare(password, storedPassword);
+            } catch (bcryptError) {
+                console.error('Ошибка bcrypt.compare:', bcryptError);
+                resolve({ success: false, error: 'Ошибка проверки пароля' });
+                return;
+            }
+          } else {
+            // Не похоже на хеш, сравниваем как текст (только для тестовых пользователей!)
+            console.warn('Обнаружен НЕ хешированный пароль в БД (ожидается только для тестовых аккаунтов). Сравнение как текст.');
+            passwordMatch = (password === storedPassword);
+          }
+          // --- КОНЕЦ ВРЕМЕННОЙ ПРОВЕРКИ ---
+
+          if (passwordMatch) {
             console.log('Пароль совпадает для пользователя:', email);
             // Password matches - Generate JWT
             const userPayload = {
@@ -604,20 +624,19 @@ ipcMain.handle('auth-login', async (_, credentials) => {
               email: user.email,
               name: user.name,
               type: user.type,
-              // Add other non-sensitive fields if needed
+              phone: user.phone,
             };
             const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '1h' }); // Token expires in 1 hour
 
             console.log('Пользователь успешно аутентифицирован:', user.email);
             resolve({
               success: true,
-              user: { // Return user data (excluding password hash)
+              user: { // Убираем avatar из ответа
                 id: user.id,
                 email: user.email,
                 name: user.name,
                 type: user.type,
                 phone: user.phone,
-                avatar: user.avatar
               },
               token: token // Return the JWT token
             });
@@ -701,38 +720,56 @@ ipcMain.handle('auth-register', async (_, userData) => {
 
       const newUserId = this.lastID;
       console.log('Пользователь успешно добавлен в БД с ID:', newUserId);
-
-      // --- 4. Generate JWT Token ---
-       const userPayload = {
-         id: newUserId,
-         email: email,
-         name: fullName,
-         type: userType
-       };
-      const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '1h' }); // Token expires in 1 hour
-
-      resolve({
-        success: true,
-        user: { // Return newly created user data (excluding password)
-          id: newUserId,
-          email: email,
-          name: fullName,
-          phone: formattedPhone,
-          type: userType,
-          avatar: null // Assuming new users don't have an avatar initially
-        },
-        token: token // Return the JWT token
+      
+      // --- ДОБАВЛЕНО: Создание связанного клиента --- 
+      const customerStmt = db.prepare(`
+        INSERT INTO customers (name, email, phone, user_id) 
+        VALUES (?, ?, ?, ?)
+      `);
+      
+      customerStmt.run(fullName, email, formattedPhone, newUserId, function(customerErr) {
+          if (customerErr) {
+              // Ошибка при создании клиента - это проблема, но регистрацию не отменяем
+              // Просто логируем ошибку и продолжаем
+              console.error(`Ошибка при создании связанного клиента для user ID ${newUserId}:`, customerErr.message);
+              // Можно было бы здесь вернуть reject или resolve с ошибкой, но тогда 
+              // пользователь не сможет войти, даже если аккаунт создан.
+              // Решаем продолжить, но записать ошибку в лог.
+          } else {
+              const newCustomerId = this.lastID;
+              console.log(`Связанный клиент успешно создан с ID: ${newCustomerId} для user ID: ${newUserId}`);
+          }
+          customerStmt.finalize(); // Финализируем стейтмент клиента
+          
+          // --- Код генерации JWT и resolve остается ЗДЕСЬ, после попытки создания клиента --- 
+          const userPayload = {
+            id: newUserId,
+            email: email,
+            name: fullName,
+            type: userType
+          };
+          const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '1h' });
+          
+          resolve({
+            success: true,
+            user: {
+              id: newUserId,
+              email: email,
+              name: fullName,
+              phone: formattedPhone,
+              type: userType,
+            },
+            token: token
+          });
+          // --- Конец кода JWT и resolve ---
       });
-    });
+      // --- КОНЕЦ ДОБАВЛЕННОГО БЛОКА ---
 
-    stmt.finalize((finalizeErr) => {
-        if (finalizeErr) {
-            console.error('Error finalizing statement during registration:', finalizeErr.message);
-            // If the promise hasn't been resolved yet (e.g., due to an error before stmt.run callback)
-            // resolve with an error here. Otherwise, the success/error is handled in stmt.run callback.
-            // This is a safety net, might need refinement based on specific error handling strategy.
-        }
-    });
+    }); // Конец stmt.run для пользователя
+
+    // stmt.finalize() для пользователя перенесен внутрь customerStmt.run callback,
+    // чтобы гарантировать последовательность
+    // stmt.finalize((finalizeErr) => { ... }); 
   });
 });
 
@@ -816,16 +853,37 @@ ipcMain.handle('change-password', async (_, { userId, currentPassword, newPasswo
         return;
       }
 
-      // 2. Сравнить предоставленный текущий пароль с хешем в базе
+      // 2. Сравнить предоставленный текущий пароль с хешем или текстом в базе
       try {
-        const match = await bcrypt.compare(currentPassword, user.password);
-        if (!match) {
+        // --- Проверка: Хеш или текстовый пароль? ---
+        let passwordMatch = false;
+        const storedPassword = user.password;
+        
+        if (storedPassword && (storedPassword.startsWith('$2a$') || storedPassword.startsWith('$2b$') || storedPassword.startsWith('$2y$'))) {
+          // Похоже на хеш, используем bcrypt
+          console.log(`ChangePassword: Обнаружен хеш пароля для user ${userId}, используем bcrypt.compare`);
+          try {
+              passwordMatch = await bcrypt.compare(currentPassword, storedPassword);
+          } catch (bcryptError) {
+              console.error(`ChangePassword: Ошибка bcrypt.compare для user ${userId}:`, bcryptError);
+              resolve({ success: false, error: 'Ошибка проверки пароля' });
+              return;
+          }
+        } else {
+          // Не похоже на хеш, сравниваем как текст (только для тестовых пользователей!)
+          console.warn(`ChangePassword: Обнаружен НЕ хешированный пароль в БД для user ${userId} (ожидается только для тестовых аккаунтов). Сравнение как текст.`);
+          passwordMatch = (currentPassword === storedPassword);
+        }
+        // --- Конец проверки --- 
+
+        if (!passwordMatch) {
           console.warn(`Неверный текущий пароль для пользователя ${userId}.`);
           resolve({ success: false, error: 'Текущий пароль неверен.' });
           return;
         }
 
         // 3. Захешировать новый пароль
+        console.log(`ChangePassword: Текущий пароль для user ${userId} совпал, хешируем новый.`);
         const newHashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
         // 4. Обновить пароль в базе данных
@@ -901,4 +959,84 @@ ipcMain.handle('admin-reset-password', async (_, userId) => {
     console.error(`Критическая ошибка при сбросе пароля для пользователя ID ${userId}:`, error);
     return { success: false, error: 'Критическая ошибка сервера при сбросе пароля.' };
   }
+});
+
+// Удаление аккаунта пользователя
+ipcMain.handle('delete-user-account', async (_, userId) => {
+  console.log(`Попытка удаления аккаунта для пользователя ID: ${userId}`);
+  
+  if (!userId) {
+    console.error('delete-user-account: userId не предоставлен.');
+    return { success: false, error: 'Не указан ID пользователя для удаления.' };
+  }
+
+  return new Promise((resolve, reject) => {
+    // Используем транзакцию для атомарности
+    db.serialize(() => {
+      db.run("BEGIN TRANSACTION");
+      
+      let customerIdToDelete = null;
+      
+      // 1. Найти связанного клиента (если есть)
+      db.get("SELECT id FROM customers WHERE user_id = ?", [userId], (err, customer) => {
+        if (err) {
+          console.error(`Ошибка поиска клиента для user ${userId} при удалении:`, err.message);
+          db.run("ROLLBACK");
+          resolve({ success: false, error: 'Ошибка сервера при поиске связанных данных.' });
+          return;
+        }
+        
+        if (customer) {
+          customerIdToDelete = customer.id;
+          console.log(`Найден клиент ${customerIdToDelete} для удаления (связан с user ${userId})`);
+
+          // 2. Удалить связанные продажи (если клиент найден)
+          db.run("DELETE FROM sales WHERE customer_id = ?", [customerIdToDelete], function(salesErr) {
+            if (salesErr) {
+              console.error(`Ошибка удаления продаж для клиента ${customerIdToDelete}:`, salesErr.message);
+              db.run("ROLLBACK");
+              resolve({ success: false, error: 'Ошибка сервера при удалении истории покупок.' });
+              return;
+            }
+            console.log(`Удалено продаж для клиента ${customerIdToDelete}: ${this.changes}`);
+
+            // 3. Удалить клиента
+            db.run("DELETE FROM customers WHERE id = ?", [customerIdToDelete], function(custErr) {
+              if (custErr) {
+                console.error(`Ошибка удаления клиента ${customerIdToDelete}:`, custErr.message);
+                db.run("ROLLBACK");
+                resolve({ success: false, error: 'Ошибка сервера при удалении профиля клиента.' });
+                return;
+              }
+              console.log(`Клиент ${customerIdToDelete} удален.`);
+              deleteUserRecord(); // Переходим к удалению пользователя
+            });
+          });
+        } else {
+           console.log(`Клиент для пользователя ${userId} не найден, пропускаем удаление клиента и продаж.`);
+           deleteUserRecord(); // Клиента нет, сразу удаляем пользователя
+        }
+      });
+      
+      // Функция для удаления записи пользователя (вызывается после обработки клиента)
+      const deleteUserRecord = () => {
+          // 4. Удалить пользователя
+          db.run("DELETE FROM users WHERE id = ?", [userId], function(userErr) {
+            if (userErr) {
+              console.error(`Ошибка удаления пользователя ${userId}:`, userErr.message);
+              db.run("ROLLBACK");
+              resolve({ success: false, error: 'Ошибка сервера при удалении аккаунта пользователя.' });
+            } else if (this.changes === 0) {
+              console.warn(`Пользователь ${userId} не найден для удаления (возможно, уже удален).`);
+              db.run("ROLLBACK"); // Откатываем, так как пользователь не найден
+              resolve({ success: false, error: 'Пользователь не найден для удаления.' });
+            } else {
+              console.log(`Пользователь ${userId} успешно удален.`);
+              db.run("COMMIT"); // Все успешно, подтверждаем транзакцию
+              resolve({ success: true });
+            }
+          });
+      };
+    }); // конец db.serialize
+  });
 }); 

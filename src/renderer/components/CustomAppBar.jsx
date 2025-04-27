@@ -168,15 +168,7 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
                 onClick={handleMenu}
                 sx={{ color: darkMode ? '#ffffff' : '#0a1929' }}
               >
-                {user?.avatar ? (
-                  <Avatar 
-                    src={user.avatar} 
-                    alt={user?.name || "User"} 
-                    sx={{ width: 32, height: 32, border: `2px solid ${darkMode ? '#9d4edd' : '#0072e5'}` }}
-                  />
-                ) : (
-                  <AccountCircleIcon />
-                )}
+                <AccountCircleIcon />
               </IconButton>
             </Tooltip>
             
@@ -196,13 +188,6 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
               }}
             >
               <MenuItem onClick={handleClose}>
-                <ListItemIcon>
-                  <Avatar 
-                    src={user?.avatar} 
-                    alt={user?.name || "User"} 
-                    sx={{ width: 24, height: 24 }}
-                  />
-                </ListItemIcon>
                 <ListItemText>
                   {user?.name || "Пользователь"}
                 </ListItemText>
@@ -211,24 +196,15 @@ const CustomAppBar = ({ open, handleDrawerToggle, drawerWidth }) => {
               {/* Добавляем пункт для перехода в личный кабинет для клиентов */}
               {isClient && isClient() && (
                 <MenuItem onClick={handleProfileClick}>
-                  <ListItemIcon>
-                    <AccountCircleIcon fontSize="small" sx={{ color: darkMode ? '#9d4edd' : '#0072e5' }} />
-                  </ListItemIcon>
                   <ListItemText>Личный кабинет</ListItemText>
                 </MenuItem>
               )}
               
               <MenuItem onClick={handleSettingsClick}>
-                <ListItemIcon>
-                  <SettingsIcon fontSize="small" sx={{ color: darkMode ? '#9d4edd' : '#0072e5' }} />
-                </ListItemIcon>
                 <ListItemText>Настройки</ListItemText>
               </MenuItem>
               
               <MenuItem onClick={handleLogout}>
-                <ListItemIcon>
-                  <LogoutIcon fontSize="small" sx={{ color: '#ff5555' }} />
-                </ListItemIcon>
                 <ListItemText>Выход</ListItemText>
               </MenuItem>
             </Menu>

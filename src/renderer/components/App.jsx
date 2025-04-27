@@ -43,6 +43,7 @@ import Sales from '../pages/Sales';
 import NewSale from '../pages/NewSale';
 import Settings from '../pages/Settings';
 import UserProfile from '../pages/Profile/UserProfile';
+import SelectPackagePage from '../pages/SelectPackagePage';
 
 // Страницы аутентификации
 import AuthLayout from '../pages/Auth/AuthLayout';
@@ -427,16 +428,17 @@ function App() {
                 {/* Общие маршруты для всех пользователей */}
                 <Route path="/settings" element={<Settings />} />
                 
-                {/* Маршрут профиля для клиентов */}
+                {/* Маршруты профиля и выбора пакета для клиентов (и админов?) */}
                 <Route path="/profile" element={<UserProfile />} />
+                <Route path="/select-package" element={<SelectPackagePage />} />
                 
                 {/* Маршруты только для администратора */}
                 <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} userType="admin" isAdmin={isAdmin} />}>
                   <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/customers/:id" element={<CustomerDetails />} />
-          <Route path="/sales" element={<Sales />} />
-          <Route path="/sales/new" element={<NewSale />} />
+                  <Route path="/customers" element={<Customers />} />
+                  <Route path="/customers/:id" element={<CustomerDetails />} />
+                  <Route path="/sales" element={<Sales />} />
+                  <Route path="/sales/new" element={<NewSale />} />
                 </Route>
                 
                 {/* Перенаправление корневого пути в зависимости от роли */}

@@ -1,5 +1,6 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, forwardRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { IMaskInput } from 'react-imask';
 import {
   Container,
   Box,
@@ -107,12 +108,31 @@ const SubmitButton = styled(Button)(({ theme }) => ({
   },
 }));
 
+// --- Компонент маски для телефона ---
+const PhoneMaskCustom = forwardRef(function PhoneMaskCustom(props, ref) {
+  const { onChange, ...other } = props;
+  return (
+    <IMaskInput
+      {...other}
+      mask="+7 (000) 000-00-00"
+      definitions={{
+        '#': /[1-9]/, // Можно использовать # для цифр, если нужно
+      }}
+      inputRef={ref}
+      onAccept={(value) => onChange({ target: { name: props.name, value } })}
+      overwrite
+      // unmask={true} // Если нужно сохранять только цифры в state
+    />
+  );
+});
+// --- Конец компонента маски ---
+
 const Register = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
-    phone: '',
+    phone: '+7 (',
     password: '',
     confirmPassword: '',
   });
@@ -177,13 +197,14 @@ const Register = () => {
       }
     }
     
-    // Проверка телефона
-    if (!formData.phone.trim()) {
+    // Проверка телефона (теперь проверяем заполненность маски)
+    if (!formData.phone) {
       newErrors.phone = 'Телефон обязателен';
     } else {
-      const phoneRegex = /^\+?[0-9\s\-\(\)]{10,15}$/;
-      if (!phoneRegex.test(formData.phone)) {
-        newErrors.phone = 'Введите корректный номер телефона';
+      // Проверяем, что номер (без маски) имеет нужную длину
+      const digits = formData.phone.replace(/\D/g, '');
+      if (digits.length !== 11) { // +7 и 10 цифр
+        newErrors.phone = 'Введите полный номер телефона';
       }
     }
     
@@ -206,18 +227,24 @@ const Register = () => {
   // Обработка отправки формы
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Проверяем валидность формы
-    if (!validateForm()) {
-      return;
-    }
-    
-    setLoading(true);
     setApiError('');
-    
+    setSuccess(false);
+
+    if (!validateForm()) {
+      return; // Не отправляем, если есть ошибки валидации
+    }
+
+    setLoading(true);
+
     try {
-      // Вызываем функцию регистрации
-      const result = register(formData);
+      // Передаем данные в функцию регистрации
+      const result = await register({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone, // Передаем отформатированный номер
+        password: formData.password,
+      });
       
       if (result.success) {
         console.log('Регистрация успешна:', result.user);
@@ -245,8 +272,8 @@ const Register = () => {
 
   return (
     <ThemeProvider theme={darkAuthTheme}>
-      <Container maxWidth="sm">
-        <AuthPaper elevation={3}>
+      <Container component="main" maxWidth="sm">
+        <AuthPaper elevation={6}>
           <LogoBox>
             <LogoText
               variant="h5" 
@@ -256,40 +283,18 @@ const Register = () => {
             </LogoText>
           </LogoBox>
           
-          <Typography 
-            variant="h6" 
-            gutterBottom
-            sx={{ color: '#ffffff' }}
-          >
-            Регистрация
+          <Typography component="h1" variant="h5">
+            Регистрация нового аккаунта
           </Typography>
           
-          <Typography 
-            variant="body2" 
-            color="text.secondary" 
-            align="center" 
-            sx={{ mb: 1, fontWeight: 400 }}
-          >
-            Создайте аккаунт для доступа к сервису
-          </Typography>
+          {apiError && <Alert severity="error" sx={{ width: '100%', mt: 2 }}>{apiError}</Alert>}
+          {success && <Alert severity="success" sx={{ width: '100%', mt: 2 }}>Регистрация прошла успешно!</Alert>}
           
-          {apiError && (
-            <Alert severity="error" sx={{ width: '100%', mt: 2, mb: 1 }}>
-              {apiError}
-            </Alert>
-          )}
-          
-          {success && (
-            <Alert severity="success" sx={{ width: '100%', mt: 2, mb: 1 }}>
-              Регистрация успешно завершена! Перенаправление...
-            </Alert>
-          )}
-          
-          <Form noValidate onSubmit={handleSubmit}>
+          <Form onSubmit={handleSubmit} noValidate>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
-                  variant="outlined"
+                  variant="filled"
                   margin="normal"
                   required
                   fullWidth
@@ -297,16 +302,16 @@ const Register = () => {
                   label="Имя"
                   name="firstName"
                   autoComplete="given-name"
+                  autoFocus
                   value={formData.firstName}
                   onChange={handleChange}
                   error={!!errors.firstName}
                   helperText={errors.firstName}
-                  autoFocus
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
-                  variant="outlined"
+                  variant="filled"
                   margin="normal"
                   required
                   fullWidth
@@ -321,14 +326,13 @@ const Register = () => {
                 />
               </Grid>
             </Grid>
-            
             <TextField
-              variant="outlined"
+              variant="filled"
               margin="normal"
               required
               fullWidth
               id="email"
-              label="Email"
+              label="Email адрес"
               name="email"
               autoComplete="email"
               value={formData.email}
@@ -336,29 +340,31 @@ const Register = () => {
               error={!!errors.email}
               helperText={errors.email}
             />
-            
             <TextField
-              variant="outlined"
+              variant="filled"
               margin="normal"
               required
               fullWidth
-              id="phone"
-              label="Телефон"
               name="phone"
+              label="Номер телефона"
+              type="tel" // Используем type="tel"
+              id="phone"
               autoComplete="tel"
               value={formData.phone}
               onChange={handleChange}
               error={!!errors.phone}
               helperText={errors.phone}
+              InputProps={{
+                inputComponent: PhoneMaskCustom, // <-- Используем кастомный компонент с маской
+              }}
             />
-            
             <TextField
-              variant="outlined"
+              variant="filled"
               margin="normal"
               required
               fullWidth
               name="password"
-              label="Пароль"
+              label="Пароль (мин. 6 символов)"
               type="password"
               id="password"
               autoComplete="new-password"
@@ -367,14 +373,13 @@ const Register = () => {
               error={!!errors.password}
               helperText={errors.password}
             />
-            
             <TextField
-              variant="outlined"
+              variant="filled"
               margin="normal"
               required
               fullWidth
               name="confirmPassword"
-              label="Подтверждение пароля"
+              label="Подтвердите пароль"
               type="password"
               id="confirmPassword"
               autoComplete="new-password"
@@ -383,54 +388,26 @@ const Register = () => {
               error={!!errors.confirmPassword}
               helperText={errors.confirmPassword}
             />
-            
-            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
-              <Button
-                variant="outlined"
-                startIcon={<BackIcon />}
-                onClick={goToLogin}
-                sx={{ 
-                  borderColor: 'rgba(157, 78, 221, 0.5)',
-                  color: '#9d4edd',
-                  "&:hover": {
-                    borderColor: '#9d4edd',
-                    backgroundColor: 'rgba(157, 78, 221, 0.08)',
-                  }
-                }}
-              >
-                Назад
-              </Button>
-              
-              <SubmitButton
-                type="submit"
-                variant="contained"
-                color="primary"
-                disabled={loading}
-                startIcon={loading ? <CircularProgress size={24} color="inherit" /> : <RegisterIcon />}
-              >
-                {loading ? 'Регистрация...' : 'Зарегистрироваться'}
-              </SubmitButton>
-            </Box>
-            
-            <Box sx={{ mt: 2, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                Уже есть аккаунт?{' '}
+            <SubmitButton
+              type="submit"
+              fullWidth
+              variant="contained"
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={24} color="inherit" /> : 'Зарегистрироваться'}
+            </SubmitButton>
+            <Grid container justifyContent="flex-end">
+              <Grid item>
                 <Link 
                   component="button" 
                   variant="body2" 
-                  onClick={goToLogin}
-                  sx={{ 
-                    color: '#9d4edd',
-                    textDecoration: 'none',
-                    '&:hover': {
-                      textDecoration: 'underline',
-                    } 
-                  }}
+                  onClick={goToLogin} 
+                  sx={{ color: '#e0aaff', cursor: 'pointer' }}
                 >
-                  Войти
+                  Уже есть аккаунт? Войти
                 </Link>
-              </Typography>
-            </Box>
+              </Grid>
+            </Grid>
           </Form>
         </AuthPaper>
       </Container>
