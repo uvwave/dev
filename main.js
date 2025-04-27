@@ -22,8 +22,7 @@ function initializeDatabase() {
   return new Promise((resolve, reject) => {
     db = new sqlite3.Database(dbPath, (err) => {
       if (err) {
-        console.error('Ошибка подключения к базе данных:', err.message);
-        // TODO: Handle error more gracefully, maybe fallback to store?
+        console.error('Ошибка подключения к базе данных SQLite:', err.message);
         reject(err);
         return;
       }
@@ -47,7 +46,7 @@ function initializeDatabase() {
                 console.error('Ошибка при выполнении init_db.sql:', execErr.message);
                 reject(execErr);
               } else {
-                console.log('База данных успешно инициализирована.');
+                console.log('База данных SQLite успешно инициализирована.');
                 resolve(); // Успешная инициализация
               }
             });
@@ -57,7 +56,7 @@ function initializeDatabase() {
           }
         } else {
           // Таблица существует, инициализация не нужна
-          console.log('Таблица users найдена. Инициализация не требуется.');
+          console.log('Таблица users найдена. Инициализация SQLite не требуется.');
           resolve(); // База данных уже инициализирована
         }
       });
@@ -65,14 +64,12 @@ function initializeDatabase() {
   });
 }
 
-// Инициализация хранилища данных (используем только если база данных недоступна)
+// Инициализация хранилища данных (остается как fallback)
 const store = new Store({name: 'mobile-crm-data'});
 
-// Обработчик на случай если хранилище еще не инициализировано
 if (!store.has('customers')) {
   store.set('customers', []);
 }
-
 if (!store.has('packages')) {
   store.set('packages', [
     { id: 1, name: 'Базовый', description: 'Минимальный пакет услуг', price: 300, minutes: 300, internet: 3, sms: 50 },
@@ -80,7 +77,6 @@ if (!store.has('packages')) {
     { id: 3, name: 'Премиум', description: 'Расширенный пакет услуг', price: 1000, minutes: 1500, internet: 30, sms: 300 }
   ]);
 }
-
 if (!store.has('sales')) {
   store.set('sales', []);
 }
@@ -152,20 +148,17 @@ ipcMain.handle('is-window-maximized', () => {
 app.whenReady().then(async () => {
   try {
     await initializeDatabase();
-    console.log('Инициализация БД завершена, создаем окно...');
+    console.log('Инициализация БД SQLite завершена, создаем окно...');
     createWindow();
   } catch (error) {
-    console.error('!!! Критическая ошибка при инициализации БД, приложение не может запуститься:', error);
-    // Можно показать диалоговое окно об ошибке пользователю
-    // dialog.showErrorBox('Ошибка базы данных', 'Не удалось инициализировать базу данных. Приложение будет закрыто.');
-    app.quit(); // Закрыть приложение, если БД не инициализирована
+    console.error('!!! Критическая ошибка при инициализации БД SQLite, приложение не может запуститься:', error);
+    app.quit();
     return;
   }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      // Перепроверить или просто создать окно, т.к. БД уже должна быть инициализирована
-      if (!mainWindow) { 
+      if (!mainWindow) {
         createWindow();
       }
     }
@@ -175,11 +168,11 @@ app.whenReady().then(async () => {
 // Закрываем приложение, когда все окна закрыты (кроме macOS)
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    // Закрываем соединение с базой данных
+    // Закрываем соединение с базой данных SQLite
     if (db) {
       db.close((err) => {
         if (err) {
-          console.error('Ошибка при закрытии соединения с базой данных:', err.message);
+          console.error('Ошибка при закрытии соединения с базой данных SQLite:', err.message);
         } else {
           console.log('Соединение с базой данных SQLite закрыто');
         }
@@ -197,11 +190,10 @@ ipcMain.handle('get-customers', () => {
     db.all("SELECT * FROM customers", (err, rows) => {
       if (err) {
         console.error('Ошибка при получении клиентов:', err.message);
-        // Возвращаем данные из хранилища в случае ошибки
-        resolve(store.get('customers'));
+        resolve(store.get('customers')); // Fallback to store
         return;
       }
-      console.log('Успешно получены данные о клиентах из базы данных');
+      console.log('Успешно получены данные о клиентах из SQLite');
       resolve(rows);
     });
   });
@@ -211,78 +203,72 @@ ipcMain.handle('get-customers', () => {
 ipcMain.handle('add-customer', async (_, customerData) => {
   const { name, email, phone, address, notes } = customerData;
   console.log('Попытка добавления клиента:', email);
-  let newUserId = null; // Переменная для хранения ID созданного пользователя
+  let newUserId = null;
 
-  return new Promise(async (resolve, reject) => { // Сделаем Promise async
-    // --- Сначала попытаемся создать пользователя (если есть email) ---
+  return new Promise(async (resolve, reject) => {
     if (email) {
       try {
         const randomPassword = crypto.randomBytes(8).toString('hex');
         const hashedPassword = await bcrypt.hash(randomPassword, saltRounds);
         const userType = 'client';
-        
-        await new Promise((userResolve, userReject) => { // Обернем в Promise для await
-            const userStmt = db.prepare(`
-              INSERT INTO users (email, password, name, phone, type) 
-              VALUES (?, ?, ?, ?, ?)
-            `);
-            userStmt.run(email, hashedPassword, name, phone, userType, function(userErr) {
-              if (userErr) {
-                if (userErr.message.includes('UNIQUE constraint failed')) {
-                  console.warn(`Пользователь с email ${email} уже существует.`);
-                  // Попробуем найти ID существующего пользователя
-                  db.get("SELECT id FROM users WHERE email = ?", [email], (findErr, existingUser) => {
-                      if (existingUser) {
-                          newUserId = existingUser.id;
-                          console.log(`Найден существующий пользователь с ID: ${newUserId}`);
-                      } else {
-                          console.error('Не удалось найти существующего пользователя после ошибки UNIQUE constraint', findErr);
-                      }
-                      userResolve(); // Продолжаем, даже если пользователь уже был
-                  });
-                } else {
-                  console.error('Ошибка при добавлении пользователя в users:', userErr.message);
-                  userReject(new Error('Ошибка создания пользовательского аккаунта')); 
-                }
+
+        await new Promise((userResolve, userReject) => {
+          const userStmt = db.prepare(`
+            INSERT INTO users (email, password, name, phone, type)
+            VALUES (?, ?, ?, ?, ?)
+          `);
+          userStmt.run(email, hashedPassword, name, phone, userType, function(userErr) {
+            if (userErr) {
+              if (userErr.message.includes('UNIQUE constraint failed')) {
+                console.warn(`Пользователь с email ${email} уже существует.`);
+                db.get("SELECT id FROM users WHERE email = ?", [email], (findErr, existingUser) => {
+                  if (existingUser) {
+                    newUserId = existingUser.id;
+                    console.log(`Найден существующий пользователь с ID: ${newUserId}`);
+                  } else {
+                    console.error('Не удалось найти существующего пользователя после ошибки UNIQUE constraint', findErr);
+                  }
+                  userResolve();
+                });
               } else {
-                newUserId = this.lastID;
-                console.log(`Пользователь для клиента ${email} успешно создан в users с ID: ${newUserId}`);
-                console.log(`!!! Сгенерирован временный пароль для пользователя ${email}: ${randomPassword} !!! ПЕРЕДАЙТЕ ЕГО КЛИЕНТУ !!!`);
-                userResolve();
+                console.error('Ошибка при добавлении пользователя в users:', userErr.message);
+                userReject(new Error('Ошибка создания пользовательского аккаунта'));
               }
-              userStmt.finalize();
-            });
+            } else {
+              newUserId = this.lastID;
+              console.log(`Пользователь для клиента ${email} успешно создан в users с ID: ${newUserId}`);
+              console.log(`!!! Сгенерирован временный пароль для пользователя ${email}: ${randomPassword} !!! ПЕРЕДАЙТЕ ЕГО КЛИЕНТУ !!!`);
+              userResolve();
+            }
+            userStmt.finalize();
+          });
         });
 
       } catch (userCreationError) {
         console.error('Критическая ошибка при создании пользователя:', userCreationError);
-        // Не прерываем добавление клиента, но сообщаем об ошибке
-        // reject(userCreationError); 
-        // return; 
+        // Не прерываем, но сообщаем
       }
     } else {
-        console.warn('Email не указан, пользовательский аккаунт не создается.');
+      console.warn('Email не указан, пользовательский аккаунт не создается.');
     }
 
-    // --- Теперь добавляем клиента в таблицу customers, используя newUserId (если он есть) ---
     const customerStmt = db.prepare(`
-      INSERT INTO customers (name, email, phone, address, notes, user_id) 
+      INSERT INTO customers (name, email, phone, address, notes, user_id)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
-    
+
     customerStmt.run(name, email, phone, address, notes, newUserId, function(customerErr) {
+      customerStmt.finalize(); // Финализируем здесь
       if (customerErr) {
         console.error('Ошибка при добавлении клиента в customers:', customerErr.message);
-        customerStmt.finalize();
-        reject(new Error('Ошибка при сохранении данных клиента в БД')); 
+        reject(new Error('Ошибка при сохранении данных клиента в БД'));
         return;
       }
-      
+
       const newCustomerId = this.lastID;
-      const createdCustomer = { ...customerData, id: newCustomerId, user_id: newUserId }; 
+      const createdCustomer = { ...customerData, id: newCustomerId, user_id: newUserId };
       console.log('Клиент успешно добавлен в customers с ID:', newCustomerId);
-      customerStmt.finalize();
-      resolve(createdCustomer); // Возвращаем клиента
+      resolve(createdCustomer);
     });
   });
 });
@@ -292,28 +278,31 @@ ipcMain.handle('update-customer', (_, customer) => {
   return new Promise((resolve, reject) => {
     const { id, name, email, phone, address, notes } = customer;
     const stmt = db.prepare(`
-      UPDATE customers 
+      UPDATE customers
       SET name = ?, email = ?, phone = ?, address = ?, notes = ?
       WHERE id = ?
     `);
-    
+
     stmt.run(name, email, phone, address, notes, id, function(err) {
       if (err) {
         console.error('Ошибка при обновлении клиента:', err.message);
-        // Возвращаем данные из хранилища в случае ошибки
+        // Fallback to store
         const customers = store.get('customers');
-        const updatedCustomers = customers.map(c => 
+        const updatedCustomers = customers.map(c =>
           c.id === customer.id ? { ...c, ...customer, updatedAt: new Date().toISOString() } : c
         );
         store.set('customers', updatedCustomers);
-        resolve(customer);
+        resolve(customer); // Return original customer data on error
         return;
       }
-      
-      console.log('Клиент успешно обновлен в базе данных');
-      resolve(customer);
+      if (this.changes === 0) {
+         console.warn(`Клиент с ID ${id} не найден для обновления.`);
+         // Optionally reject or resolve differently
+      } else {
+         console.log('Клиент успешно обновлен в SQLite');
+      }
+      resolve(customer); // Return updated customer data
     });
-    
     stmt.finalize();
   });
 });
@@ -322,22 +311,25 @@ ipcMain.handle('update-customer', (_, customer) => {
 ipcMain.handle('delete-customer', (_, id) => {
   return new Promise((resolve, reject) => {
     const stmt = db.prepare("DELETE FROM customers WHERE id = ?");
-    
+
     stmt.run(id, function(err) {
       if (err) {
         console.error('Ошибка при удалении клиента:', err.message);
-        // Возвращаем данные из хранилища в случае ошибки
+        // Fallback to store
         const customers = store.get('customers');
         const filteredCustomers = customers.filter(c => c.id !== id);
         store.set('customers', filteredCustomers);
         resolve(id);
         return;
       }
-      
-      console.log('Клиент успешно удален из базы данных');
+       if (this.changes === 0) {
+         console.warn(`Клиент с ID ${id} не найден для удаления.`);
+         // Resolve anyway, as the goal is achieved (client is gone)
+       } else {
+         console.log('Клиент успешно удален из SQLite');
+       }
       resolve(id);
     });
-    
     stmt.finalize();
   });
 });
@@ -345,65 +337,54 @@ ipcMain.handle('delete-customer', (_, id) => {
 // Получение пакетов услуг
 ipcMain.handle('get-packages', () => {
   return new Promise((resolve, reject) => {
-    db.all("SELECT * FROM packages", (err, rows) => {
+    db.all("SELECT * FROM packages ORDER BY id", (err, rows) => {
       if (err) {
         console.error('Ошибка при получении пакетов услуг:', err.message);
-        // Возвращаем данные из хранилища в случае ошибки
-        resolve(store.get('packages'));
+        resolve(store.get('packages')); // Fallback
         return;
       }
-      console.log('Успешно получены данные о пакетах услуг из базы данных');
+      console.log('Успешно получены данные о пакетах услуг из SQLite');
       resolve(rows);
     });
   });
 });
 
-// Добавление продажи (с исправленной обработкой ошибок)
+// Добавление продажи
 ipcMain.handle('add-sale', (_, saleData) => {
   return new Promise((resolve, reject) => {
-    // Получаем данные из saleData
     const { customerId, packageId, amount, sale_date } = saleData;
-    
-    // Проверка наличия обязательных данных
+
     if (customerId === undefined || packageId === undefined || amount === undefined) {
       console.error('Ошибка добавления продажи: Отсутствуют customerId, packageId или amount.', saleData);
       reject(new Error('Недостаточно данных для добавления продажи (клиент, пакет, сумма).'));
       return;
     }
-    
+
     const currentDate = sale_date || new Date().toISOString().split('T')[0];
-    
+
     const stmt = db.prepare(`
-      INSERT INTO sales (customer_id, package_id, amount, sale_date) 
+      INSERT INTO sales (customer_id, package_id, amount, sale_date)
       VALUES (?, ?, ?, ?)
     `);
-    
+
     stmt.run(customerId, packageId, amount, currentDate, function(err) {
       if (err) {
-        console.error('Ошибка при добавлении продажи в БД:', err.message);
-        stmt.finalize(); // Финализируем в случае ошибки
-        // Отправляем ошибку на фронтенд
-        reject(new Error('Ошибка при сохранении данных продажи в БД')); 
+        console.error('Ошибка при добавлении продажи в БД SQLite:', err.message);
+        stmt.finalize();
+        reject(new Error('Ошибка при сохранении данных продажи в БД'));
         return;
       }
-      
-      // Успешно добавлено, формируем ответный объект
       const newSale = {
-        id: this.lastID, // ID созданной записи
+        id: this.lastID,
         customerId: customerId,
         packageId: packageId,
         amount: amount,
         sale_date: currentDate,
-        // Можно добавить customerName и packageName, если они нужны фронту сразу
-        // Но лучше получать их через get-sales
       };
-      
-      console.log('Продажа успешно добавлена в базу данных с ID:', newSale.id);
-      stmt.finalize(); // Финализируем после успешного выполнения
-      resolve(newSale); // Отправляем созданную продажу на фронтенд
+      console.log('Продажа успешно добавлена в SQLite с ID:', newSale.id);
+      stmt.finalize();
+      resolve(newSale);
     });
-    
-    // stmt.finalize(); // Убрано отсюда, т.к. finalize вызывается внутри callback
   });
 });
 
@@ -411,12 +392,12 @@ ipcMain.handle('add-sale', (_, saleData) => {
 ipcMain.handle('get-sales', () => {
   return new Promise((resolve, reject) => {
     const query = `
-      SELECT 
-        s.id, 
-        s.customer_id AS customerId, 
-        s.package_id AS packageId, 
-        s.amount, 
-        s.sale_date, 
+      SELECT
+        s.id,
+        s.customer_id AS customerId,
+        s.package_id AS packageId,
+        s.amount,
+        s.sale_date,
         c.name AS customerName,
         p.name AS packageName
       FROM sales s
@@ -424,15 +405,14 @@ ipcMain.handle('get-sales', () => {
       JOIN packages p ON s.package_id = p.id
       ORDER BY s.sale_date DESC
     `;
-    
+
     db.all(query, (err, rows) => {
       if (err) {
         console.error('Ошибка при получении продаж:', err.message);
-        // Возвращаем данные из хранилища в случае ошибки
-        resolve(store.get('sales'));
+        resolve(store.get('sales')); // Fallback
         return;
       }
-      console.log('Успешно получены данные о продажах из базы данных');
+      console.log('Успешно получены данные о продажах из SQLite');
       resolve(rows);
     });
   });
@@ -441,9 +421,8 @@ ipcMain.handle('get-sales', () => {
 // Получение статистики продаж
 ipcMain.handle('get-sales-stats', () => {
   return new Promise((resolve, reject) => {
-    // Статистика по пакетам
     const packageStatsQuery = `
-      SELECT 
+      SELECT
         p.id AS packageId,
         p.name AS packageName,
         COUNT(s.id) AS count,
@@ -452,209 +431,142 @@ ipcMain.handle('get-sales-stats', () => {
       LEFT JOIN sales s ON p.id = s.package_id
       GROUP BY p.id, p.name
     `;
-    
-    // Получаем месяцы на русском языке
-    const months = [
-      'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-      'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-    ];
-    
-    // Запрос для получения суммарной статистики
+
+    const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+
     const totalsQuery = `
-      SELECT 
+      SELECT
         COUNT(id) AS totalSales,
         IFNULL(SUM(amount), 0) AS totalRevenue
       FROM sales
     `;
-    
-    // Запрос для получения статистики по месяцам за последние 6 месяцев
+
     const today = new Date();
-    const monthlyStats = [];
-    
-    // Функция для выполнения запроса по месячной статистике
+
     const getMonthStats = (year, month) => {
       return new Promise((innerResolve) => {
-        // STRFTIME - для работы с датами в SQLite
         const monthQuery = `
-          SELECT 
+          SELECT
             COUNT(id) AS count,
             IFNULL(SUM(amount), 0) AS revenue
           FROM sales
-          WHERE strftime('%Y', sale_date) = '${year}'
-          AND strftime('%m', sale_date) = '${month.toString().padStart(2, '0')}'
+          WHERE strftime('%Y', sale_date) = ?
+          AND strftime('%m', sale_date) = ?
         `;
-        
-        db.get(monthQuery, (err, row) => {
+        // Используем padStart для месяца
+        const monthStr = month.toString().padStart(2, '0');
+        db.get(monthQuery, [year.toString(), monthStr], (err, row) => {
           if (err) {
             console.error('Ошибка при получении месячной статистики:', err.message);
-            innerResolve({
-              month: months[month - 1],
-              count: 0,
-              revenue: 0
-            });
-            return;
+            innerResolve({ month: months[month - 1], count: 0, revenue: 0 });
+          } else {
+            innerResolve({ month: months[month - 1], count: row?.count || 0, revenue: row?.revenue || 0 });
           }
-          
-          innerResolve({
-            month: months[month - 1],
-            count: row.count,
-            revenue: row.revenue
-          });
         });
       });
     };
-    
-    // Получаем статистику по пакетам
-    db.all(packageStatsQuery, async (err, packageStats) => {
+
+    db.all(packageStatsQuery, (err, packageStats) => {
       if (err) {
         console.error('Ошибка при получении статистики по пакетам:', err.message);
-        resolve(getMockStats()); // Возвращаем мок-данные в случае ошибки
+        reject(new Error('Ошибка получения статистики пакетов')); // Reject on error
         return;
       }
-      
-      // Получаем общую статистику
+
       db.get(totalsQuery, async (err, totals) => {
         if (err) {
           console.error('Ошибка при получении общей статистики:', err.message);
-          resolve(getMockStats()); // Возвращаем мок-данные в случае ошибки
+          reject(new Error('Ошибка получения общей статистики')); // Reject on error
           return;
         }
-        
-        // Получаем месячную статистику за последние 6 месяцев
+
         const monthlyStatsPromises = [];
         for (let i = 5; i >= 0; i--) {
           const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
           monthlyStatsPromises.push(getMonthStats(date.getFullYear(), date.getMonth() + 1));
         }
-        
+
         try {
           const monthlyStats = await Promise.all(monthlyStatsPromises);
-          
           const stats = {
             packageStats,
             monthlyStats,
-            totalSales: totals.totalSales,
-            totalRevenue: totals.totalRevenue
+            totalSales: totals?.totalSales || 0,
+            totalRevenue: totals?.totalRevenue || 0
           };
-          
-          console.log('Успешно получена статистика продаж из базы данных');
+          console.log('Успешно получена статистика продаж из SQLite');
           resolve(stats);
         } catch (error) {
           console.error('Ошибка при получении месячной статистики:', error.message);
-          resolve(getMockStats()); // Возвращаем мок-данные в случае ошибки
+          reject(new Error('Ошибка получения месячной статистики')); // Reject on error
         }
       });
     });
   });
 });
 
-// Функция получения мок-данных для статистики (на случай ошибок)
-function getMockStats() {
-  return {
-    totalSales: 0,
-    totalRevenue: 0,
-    monthlyStats: [
-      { month: 'Январь', count: 0, revenue: 0 },
-      { month: 'Февраль', count: 0, revenue: 0 },
-      { month: 'Март', count: 0, revenue: 0 },
-      { month: 'Апрель', count: 0, revenue: 0 },
-      { month: 'Май', count: 0, revenue: 0 },
-      { month: 'Июнь', count: 0, revenue: 0 }
-    ],
-    packageStats: [
-      { packageName: 'Базовый', count: 0 },
-      { packageName: 'Стандартный', count: 0 },
-      { packageName: 'Премиум', count: 0 }
-    ]
-  };
-}
-
 // Добавляем обработчик для аутентификации пользователя
 ipcMain.handle('auth-login', async (_, credentials) => {
-  console.log("--- auth-login handler started ---");
-  try {
-    const { email, password } = credentials;
-    console.log('Попытка входа пользователя:', email);
+  console.log("--- auth-login handler started (SQLite) ---");
+  const { email, password } = credentials;
+  console.log('Попытка входа пользователя:', email);
 
-    return new Promise((resolve, reject) => {
-      // Убираем avatar из SELECT
-      const query = `
-        SELECT id, email, name, type, phone, password 
-        FROM users 
-        WHERE email = ?
-      `; 
+  const query = `
+      SELECT id, email, name, type, phone, password
+      FROM users
+      WHERE email = ?
+  `;
 
+  return new Promise((resolve, reject) => {
       db.get(query, [email], async (err, user) => {
-        console.log("--- db.get callback started ---");
-        if (err) {
-          console.error('Ошибка при поиске пользователя:', err.message);
-          resolve({ success: false, error: 'Ошибка сервера при входе' });
-          return;
-        }
-
-        if (user) {
-          console.log('User found in DB:', user.email);
-          
-          // --- ВРЕМЕННАЯ ПРОВЕРКА: Хеш или текстовый пароль? ---
-          let passwordMatch = false;
-          const storedPassword = user.password;
-          
-          if (storedPassword && (storedPassword.startsWith('$2a$') || storedPassword.startsWith('$2b$') || storedPassword.startsWith('$2y$'))) {
-            // Похоже на хеш, используем bcrypt
-            console.log('Обнаружен хеш пароля, используем bcrypt.compare');
-            try {
-                passwordMatch = await bcrypt.compare(password, storedPassword);
-            } catch (bcryptError) {
-                console.error('Ошибка bcrypt.compare:', bcryptError);
-                resolve({ success: false, error: 'Ошибка проверки пароля' });
-                return;
-            }
-          } else {
-            // Не похоже на хеш, сравниваем как текст (только для тестовых пользователей!)
-            console.warn('Обнаружен НЕ хешированный пароль в БД (ожидается только для тестовых аккаунтов). Сравнение как текст.');
-            passwordMatch = (password === storedPassword);
+          if (err) {
+              console.error('Ошибка при поиске пользователя:', err.message);
+              resolve({ success: false, error: 'Ошибка сервера при входе' });
+              return;
           }
-          // --- КОНЕЦ ВРЕМЕННОЙ ПРОВЕРКИ ---
 
-          if (passwordMatch) {
-            console.log('Пароль совпадает для пользователя:', email);
-            // Password matches - Generate JWT
-            const userPayload = {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-              type: user.type,
-              phone: user.phone,
-            };
-            const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '1h' }); // Token expires in 1 hour
+          if (user) {
+              console.log('User found in DB:', user.email);
+              let passwordMatch = false;
+              const storedPassword = user.password;
 
-            console.log('Пользователь успешно аутентифицирован:', user.email);
-            resolve({
-              success: true,
-              user: { // Убираем avatar из ответа
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                type: user.type,
-                phone: user.phone,
-              },
-              token: token // Return the JWT token
-            });
+              if (storedPassword && (storedPassword.startsWith('$2a$') || storedPassword.startsWith('$2b$') || storedPassword.startsWith('$2y$'))) {
+                  console.log('Обнаружен хеш пароля, используем bcrypt.compare');
+                  try {
+                      passwordMatch = await bcrypt.compare(password, storedPassword);
+                  } catch (bcryptError) {
+                      console.error('Ошибка bcrypt.compare:', bcryptError);
+                      resolve({ success: false, error: 'Ошибка проверки пароля' });
+                      return;
+                  }
+              } else {
+                  console.warn('Обнаружен НЕ хешированный пароль в БД (ожидается только для тестовых аккаунтов). Сравнение как текст.');
+                  passwordMatch = (password === storedPassword);
+              }
+
+              if (passwordMatch) {
+                  console.log('Пароль совпадает для пользователя:', email);
+                  const userPayload = {
+                      id: user.id, email: user.email, name: user.name, type: user.type, phone: user.phone,
+                  };
+                  const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '1h' });
+
+                  console.log('Пользователь успешно аутентифицирован:', user.email);
+                  resolve({
+                      success: true,
+                      user: { id: user.id, email: user.email, name: user.name, type: user.type, phone: user.phone },
+                      token: token
+                  });
+              } else {
+                  console.log('Неверный пароль для пользователя:', email);
+                  resolve({ success: false, error: 'Неверный email или пароль' });
+              }
           } else {
-            console.log('Неверный пароль для пользователя:', email);
-            resolve({ success: false, error: 'Неверный email или пароль' });
+              console.log('Пользователь не найден:', email);
+              resolve({ success: false, error: 'Неверный email или пароль' });
           }
-        } else {
-          console.log('Пользователь не найден:', email);
-          resolve({ success: false, error: 'Неверный email или пароль' });
-        }
       });
-    });
-  } catch (error) {
-    console.error('!!! Critical error in auth-login handler:', error);
-    // Return a generic error response
-    return { success: false, error: 'Критическая ошибка на сервере при входе' };
-  }
+  });
 });
 
 // Добавляем обработчик для регистрации нового пользователя
@@ -662,32 +574,27 @@ ipcMain.handle('auth-register', async (_, userData) => {
   const { email, password, firstName, lastName, phone } = userData;
   console.log('Попытка регистрации пользователя:', email);
 
-  // --- 2. Phone Number Formatting ---
   let formattedPhone = phone;
   if (phone) {
     // Remove non-digit characters except potential leading +
     const digits = phone.replace(/\D/g, '');
-    // Check if it looks like a Russian number (10 digits after 7/8)
     if (digits.length === 11 && (digits.startsWith('7') || digits.startsWith('8'))) {
-        const nationalPart = digits.substring(1); // Get 10 digits after 7/8
+        const nationalPart = digits.substring(1);
         const operatorCode = nationalPart.substring(0, 3);
         const part1 = nationalPart.substring(3, 6);
         const part2 = nationalPart.substring(6, 8);
         const part3 = nationalPart.substring(8, 10);
         formattedPhone = `+7 (${operatorCode}) ${part1}-${part2}-${part3}`;
-    } else if (digits.length === 10) { 
-        // Assume 10 digits are the national part
+    } else if (digits.length === 10) {
         const operatorCode = digits.substring(0, 3);
         const part1 = digits.substring(3, 6);
         const part2 = digits.substring(6, 8);
         const part3 = digits.substring(8, 10);
         formattedPhone = `+7 (${operatorCode}) ${part1}-${part2}-${part3}`;
     }
-    // Add more validation/formatting rules if needed
   }
   console.log('Formatted phone:', formattedPhone);
 
-  // --- 3. Password Hashing ---
   let hashedPassword;
   try {
     hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -697,19 +604,18 @@ ipcMain.handle('auth-register', async (_, userData) => {
   }
 
   const fullName = `${firstName || ''} ${lastName || ''}`.trim();
-  const userType = 'client'; // Default type for registration
+  const userType = 'client';
 
   return new Promise((resolve, reject) => {
-    // --- 1. Save to Database (with hashed password and formatted phone) ---
     const stmt = db.prepare(`
-      INSERT INTO users (email, password, name, phone, type) 
+      INSERT INTO users (email, password, name, phone, type)
       VALUES (?, ?, ?, ?, ?)
     `);
 
     stmt.run(email, hashedPassword, fullName, formattedPhone, userType, function(err) {
       if (err) {
+        stmt.finalize();
         console.error('Ошибка при добавлении пользователя в БД:', err.message);
-        // Check for unique constraint error (e.g., email already exists)
         if (err.message.includes('UNIQUE constraint failed')) {
           resolve({ success: false, error: 'Пользователь с таким email уже существует' });
         } else {
@@ -720,100 +626,77 @@ ipcMain.handle('auth-register', async (_, userData) => {
 
       const newUserId = this.lastID;
       console.log('Пользователь успешно добавлен в БД с ID:', newUserId);
-      
-      // --- ДОБАВЛЕНО: Создание связанного клиента --- 
+      stmt.finalize(); // Финализируем стейтмент пользователя
+
+      // Создание связанного клиента
       const customerStmt = db.prepare(`
-        INSERT INTO customers (name, email, phone, user_id) 
+        INSERT INTO customers (name, email, phone, user_id)
         VALUES (?, ?, ?, ?)
       `);
-      
+
       customerStmt.run(fullName, email, formattedPhone, newUserId, function(customerErr) {
-          if (customerErr) {
-              // Ошибка при создании клиента - это проблема, но регистрацию не отменяем
-              // Просто логируем ошибку и продолжаем
-              console.error(`Ошибка при создании связанного клиента для user ID ${newUserId}:`, customerErr.message);
-              // Можно было бы здесь вернуть reject или resolve с ошибкой, но тогда 
-              // пользователь не сможет войти, даже если аккаунт создан.
-              // Решаем продолжить, но записать ошибку в лог.
-          } else {
-              const newCustomerId = this.lastID;
-              console.log(`Связанный клиент успешно создан с ID: ${newCustomerId} для user ID: ${newUserId}`);
-          }
-          customerStmt.finalize(); // Финализируем стейтмент клиента
-          
-          // --- Код генерации JWT и resolve остается ЗДЕСЬ, после попытки создания клиента --- 
-          const userPayload = {
-            id: newUserId,
-            email: email,
-            name: fullName,
-            type: userType
-          };
-          const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '1h' });
-          
-          resolve({
-            success: true,
-            user: {
-              id: newUserId,
-              email: email,
-              name: fullName,
-              phone: formattedPhone,
-              type: userType,
-            },
-            token: token
-          });
-          // --- Конец кода JWT и resolve ---
+        customerStmt.finalize(); // Финализируем стейтмент клиента
+        if (customerErr) {
+          console.error(`Ошибка при создании связанного клиента для user ID ${newUserId}:`, customerErr.message);
+          // Продолжаем, но ошибка залогирована
+        } else {
+          const newCustomerId = this.lastID;
+          console.log(`Связанный клиент успешно создан с ID: ${newCustomerId} для user ID: ${newUserId}`);
+        }
+
+        // Генерация JWT и отправка ответа
+        const userPayload = { id: newUserId, email: email, name: fullName, type: userType };
+        const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '1h' });
+
+        resolve({
+          success: true,
+          user: { id: newUserId, email: email, name: fullName, phone: formattedPhone, type: userType },
+          token: token
+        });
       });
-      // --- КОНЕЦ ДОБАВЛЕННОГО БЛОКА ---
-
-    }); // Конец stmt.run для пользователя
-
-    // stmt.finalize() для пользователя перенесен внутрь customerStmt.run callback,
-    // чтобы гарантировать последовательность
-    // stmt.finalize((finalizeErr) => { ... }); 
+    });
   });
 });
 
-// Получение продаж для конкретного пользователя (для ЛК клиента)
+// Получение продаж для конкретного пользователя
 ipcMain.handle('get-user-sales', async (_, userId) => {
   if (!userId) {
     console.error('get-user-sales: userId не предоставлен');
-    return []; // Возвращаем пустой массив, если нет ID пользователя
+    return [];
   }
   console.log(`Запрос продаж для пользователя с ID: ${userId}`);
-  
+
   return new Promise((resolve, reject) => {
-    // Сначала находим customer_id по user_id
     db.get("SELECT id FROM customers WHERE user_id = ?", [userId], (err, customer) => {
       if (err) {
         console.error(`Ошибка при поиске customer_id для user_id ${userId}:`, err.message);
         reject(new Error('Ошибка при поиске данных клиента'));
         return;
       }
-      
+
       if (!customer) {
         console.warn(`Клиент (customer) для пользователя с ID ${userId} не найден.`);
-        resolve([]); // Пользователь есть, но связанного клиента нет - возвращаем пустой массив продаж
+        resolve([]);
         return;
       }
-      
+
       const customerId = customer.id;
       console.log(`Найден customer_id: ${customerId} для user_id: ${userId}`);
-      
-      // Теперь ищем продажи по customer_id
+
       const query = `
-        SELECT 
-          s.id, 
-          s.customer_id AS customerId, 
-          s.package_id AS packageId, 
-          s.amount, 
-          s.sale_date, 
+        SELECT
+          s.id,
+          s.customer_id AS customerId,
+          s.package_id AS packageId,
+          s.amount,
+          s.sale_date,
           p.name AS packageName
         FROM sales s
         JOIN packages p ON s.package_id = p.id
         WHERE s.customer_id = ?
         ORDER BY s.sale_date DESC
       `;
-      
+
       db.all(query, [customerId], (salesErr, rows) => {
         if (salesErr) {
           console.error(`Ошибка при получении продаж для customer_id ${customerId}:`, salesErr.message);
@@ -830,17 +713,15 @@ ipcMain.handle('get-user-sales', async (_, userId) => {
 // Смена пароля пользователем
 ipcMain.handle('change-password', async (_, { userId, currentPassword, newPassword }) => {
   console.log(`Попытка смены пароля для пользователя ID: ${userId}`);
-  
-  // Проверка входных данных
+
   if (!userId || !currentPassword || !newPassword) {
     return { success: false, error: 'Не все данные для смены пароля предоставлены.' };
   }
   if (newPassword.length < 6) {
-      return { success: false, error: 'Новый пароль должен быть не менее 6 символов.' };
+    return { success: false, error: 'Новый пароль должен быть не менее 6 символов.' };
   }
 
   return new Promise((resolve, reject) => {
-    // 1. Найти пользователя и его текущий хеш пароля
     db.get("SELECT password FROM users WHERE id = ?", [userId], async (err, user) => {
       if (err) {
         console.error(`Ошибка поиска пользователя ${userId} для смены пароля:`, err.message);
@@ -853,14 +734,11 @@ ipcMain.handle('change-password', async (_, { userId, currentPassword, newPasswo
         return;
       }
 
-      // 2. Сравнить предоставленный текущий пароль с хешем или текстом в базе
       try {
-        // --- Проверка: Хеш или текстовый пароль? ---
         let passwordMatch = false;
         const storedPassword = user.password;
-        
+
         if (storedPassword && (storedPassword.startsWith('$2a$') || storedPassword.startsWith('$2b$') || storedPassword.startsWith('$2y$'))) {
-          // Похоже на хеш, используем bcrypt
           console.log(`ChangePassword: Обнаружен хеш пароля для user ${userId}, используем bcrypt.compare`);
           try {
               passwordMatch = await bcrypt.compare(currentPassword, storedPassword);
@@ -870,11 +748,9 @@ ipcMain.handle('change-password', async (_, { userId, currentPassword, newPasswo
               return;
           }
         } else {
-          // Не похоже на хеш, сравниваем как текст (только для тестовых пользователей!)
           console.warn(`ChangePassword: Обнаружен НЕ хешированный пароль в БД для user ${userId} (ожидается только для тестовых аккаунтов). Сравнение как текст.`);
           passwordMatch = (currentPassword === storedPassword);
         }
-        // --- Конец проверки --- 
 
         if (!passwordMatch) {
           console.warn(`Неверный текущий пароль для пользователя ${userId}.`);
@@ -882,11 +758,9 @@ ipcMain.handle('change-password', async (_, { userId, currentPassword, newPasswo
           return;
         }
 
-        // 3. Захешировать новый пароль
         console.log(`ChangePassword: Текущий пароль для user ${userId} совпал, хешируем новый.`);
         const newHashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-        // 4. Обновить пароль в базе данных
         db.run("UPDATE users SET password = ? WHERE id = ?", [newHashedPassword, userId], function(updateErr) {
           if (updateErr) {
             console.error(`Ошибка обновления пароля для пользователя ${userId}:`, updateErr.message);
@@ -899,7 +773,7 @@ ipcMain.handle('change-password', async (_, { userId, currentPassword, newPasswo
             resolve({ success: true });
           }
         });
-      
+
       } catch (compareOrHashError) {
         console.error(`Ошибка bcrypt при смене пароля для ${userId}:`, compareOrHashError);
         resolve({ success: false, error: 'Ошибка при обработке пароля.' });
@@ -911,28 +785,23 @@ ipcMain.handle('change-password', async (_, { userId, currentPassword, newPasswo
 // Сброс пароля пользователя администратором
 ipcMain.handle('admin-reset-password', async (_, userId) => {
   console.log(`Попытка сброса пароля администратором для пользователя ID: ${userId}`);
-  
+
   if (!userId) {
     return { success: false, error: 'Не предоставлен ID пользователя для сброса пароля.' };
   }
 
   try {
-    // 1. Получить email пользователя для лога (опционально, но полезно)
     const userEmailResult = await new Promise((resolve, reject) => {
         db.get("SELECT email FROM users WHERE id = ?", [userId], (err, user) => {
-            if (err || !user) resolve(null); // Не критично, если не нашли email
+            if (err || !user) resolve(null);
             else resolve(user.email);
         });
     });
     const userEmailForLog = userEmailResult || `ID ${userId}`;
 
-    // 2. Сгенерировать новый случайный пароль
     const newRandomPassword = crypto.randomBytes(8).toString('hex');
-
-    // 3. Захешировать новый пароль
     const newHashedPassword = await bcrypt.hash(newRandomPassword, saltRounds);
 
-    // 4. Обновить пароль в базе данных
     const updateResult = await new Promise((resolve) => {
         db.run("UPDATE users SET password = ? WHERE id = ?", [newHashedPassword, userId], function(updateErr) {
           if (updateErr) {
@@ -943,16 +812,14 @@ ipcMain.handle('admin-reset-password', async (_, userId) => {
             resolve({ success: false, error: 'Не удалось сбросить пароль (пользователь не найден).' });
           } else {
             console.log(`Пароль для пользователя ${userEmailForLog} успешно сброшен.`);
-            // !!! ВЫВОДИМ НОВЫЙ ПАРОЛЬ В КОНСОЛЬ ДЛЯ АДМИНА !!!
             console.log(`#############################################################`);
             console.log(`!!! Новый временный пароль для ${userEmailForLog}: ${newRandomPassword} !!!`);
             console.log(`!!! ПЕРЕДАЙТЕ ЭТОТ ПАРОЛЬ ПОЛЬЗОВАТЕЛЮ БЕЗОПАСНО !!!`);
             console.log(`#############################################################`);
-            resolve({ success: true, newPassword: newRandomPassword }); 
+            resolve({ success: true, newPassword: newRandomPassword }); // Возвращаем пароль
           }
         });
     });
-    
     return updateResult;
 
   } catch (error) {
@@ -964,19 +831,19 @@ ipcMain.handle('admin-reset-password', async (_, userId) => {
 // Удаление аккаунта пользователя
 ipcMain.handle('delete-user-account', async (_, userId) => {
   console.log(`Попытка удаления аккаунта для пользователя ID: ${userId}`);
-  
+
   if (!userId) {
     console.error('delete-user-account: userId не предоставлен.');
     return { success: false, error: 'Не указан ID пользователя для удаления.' };
   }
 
   return new Promise((resolve, reject) => {
-    // Используем транзакцию для атомарности
+    // Используем транзакцию SQLite
     db.serialize(() => {
       db.run("BEGIN TRANSACTION");
-      
+
       let customerIdToDelete = null;
-      
+
       // 1. Найти связанного клиента (если есть)
       db.get("SELECT id FROM customers WHERE user_id = ?", [userId], (err, customer) => {
         if (err) {
@@ -985,12 +852,31 @@ ipcMain.handle('delete-user-account', async (_, userId) => {
           resolve({ success: false, error: 'Ошибка сервера при поиске связанных данных.' });
           return;
         }
-        
+
+        const deleteUserRecord = () => {
+            // 4. Удалить пользователя
+            db.run("DELETE FROM users WHERE id = ?", [userId], function(userErr) {
+              if (userErr) {
+                console.error(`Ошибка удаления пользователя ${userId}:`, userErr.message);
+                db.run("ROLLBACK");
+                resolve({ success: false, error: 'Ошибка сервера при удалении аккаунта пользователя.' });
+              } else if (this.changes === 0) {
+                console.warn(`Пользователь ${userId} не найден для удаления (возможно, уже удален).`);
+                db.run("ROLLBACK");
+                resolve({ success: false, error: 'Пользователь не найден для удаления.' });
+              } else {
+                console.log(`Пользователь ${userId} успешно удален.`);
+                db.run("COMMIT"); // Все успешно, подтверждаем транзакцию
+                resolve({ success: true });
+              }
+            });
+        };
+
         if (customer) {
           customerIdToDelete = customer.id;
           console.log(`Найден клиент ${customerIdToDelete} для удаления (связан с user ${userId})`);
 
-          // 2. Удалить связанные продажи (если клиент найден)
+          // 2. Удалить связанные продажи
           db.run("DELETE FROM sales WHERE customer_id = ?", [customerIdToDelete], function(salesErr) {
             if (salesErr) {
               console.error(`Ошибка удаления продаж для клиента ${customerIdToDelete}:`, salesErr.message);
@@ -1017,26 +903,6 @@ ipcMain.handle('delete-user-account', async (_, userId) => {
            deleteUserRecord(); // Клиента нет, сразу удаляем пользователя
         }
       });
-      
-      // Функция для удаления записи пользователя (вызывается после обработки клиента)
-      const deleteUserRecord = () => {
-          // 4. Удалить пользователя
-          db.run("DELETE FROM users WHERE id = ?", [userId], function(userErr) {
-            if (userErr) {
-              console.error(`Ошибка удаления пользователя ${userId}:`, userErr.message);
-              db.run("ROLLBACK");
-              resolve({ success: false, error: 'Ошибка сервера при удалении аккаунта пользователя.' });
-            } else if (this.changes === 0) {
-              console.warn(`Пользователь ${userId} не найден для удаления (возможно, уже удален).`);
-              db.run("ROLLBACK"); // Откатываем, так как пользователь не найден
-              resolve({ success: false, error: 'Пользователь не найден для удаления.' });
-            } else {
-              console.log(`Пользователь ${userId} успешно удален.`);
-              db.run("COMMIT"); // Все успешно, подтверждаем транзакцию
-              resolve({ success: true });
-            }
-          });
-      };
     }); // конец db.serialize
   });
 }); 

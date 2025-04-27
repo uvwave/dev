@@ -170,12 +170,36 @@ const SelectPackagePage = () => {
                   {pkg.name}
                 </Typography>
                 <Chip label={`${pkg.price} ₽ / мес`} color="primary" sx={{ mb: 1.5 }} />
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" paragraph>
                   {pkg.description || 'Описание пакета отсутствует.'}
                 </Typography>
-                {/* Можно добавить вывод доп. параметров пакета, если они есть */}
-                {/* <Typography variant="body2">Интернет: {pkg.internet} ГБ</Typography> */}
-                {/* <Typography variant="body2">Минуты: {pkg.minutes}</Typography> */}
+                {/* Добавляем вывод доп. параметров пакета */} 
+                <Box sx={{ mt: 1 }}>
+                  {pkg.minutes !== undefined && (
+                     <Chip 
+                        label={`${pkg.minutes} минут`} 
+                        variant="outlined" 
+                        size="small" 
+                        sx={{ mr: 0.5, mb: 0.5 }}
+                     />
+                   )}
+                   {pkg.internet !== undefined && (
+                     <Chip 
+                        label={`${pkg.internet} ГБ интернета`} 
+                        variant="outlined" 
+                        size="small" 
+                        sx={{ mr: 0.5, mb: 0.5 }}
+                     />
+                   )}
+                   {pkg.sms !== undefined && (
+                     <Chip 
+                        label={`${pkg.sms} SMS`} 
+                        variant="outlined" 
+                        size="small" 
+                        sx={{ mb: 0.5 }}
+                     />
+                   )}
+                </Box>
               </CardContent>
               <CardActions sx={{ justifyContent: 'center', pb: 2 }}>
                 <Button 
